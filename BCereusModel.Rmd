@@ -1,0 +1,41 @@
+---
+title: "BCereusModel"
+author: "Jun Su"
+date: "2022-10-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Set-up environment
+* load packages
+* load functions
+* set seed for reproducibilty
+```{r, message=FALSE,warning=FALSE}
+##load packages 
+library(nlsMicrobio)
+library(minpack.lm)
+library(tidyverse)
+library(stats)
+library(readr)
+
+##load functions
+source("UtilityFunctions.R")
+```
+
+```{r knitr_options , include=FALSE}
+## set seed
+set.seed(1)
+```
+
+## 2. Load input files
+* load
+```{r}
+# (a) B cereus growth data 
+data1 <- read_csv("data1.csv")
+data1 <- data1[,2:5]
+view(data1)
+```
+
