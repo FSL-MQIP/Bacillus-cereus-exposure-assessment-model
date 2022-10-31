@@ -3,7 +3,6 @@ library(nlsMicrobio)
 library(minpack.lm)
 library(stats)
 
-rm(Iso413Rep2.buc_nolag_LM)
 
 # Import data 
 data1 <-read.csv("data1.csv")
