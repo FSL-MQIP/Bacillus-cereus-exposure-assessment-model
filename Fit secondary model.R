@@ -1,15 +1,15 @@
-data <- read.csv("mumax.csv")
+data <- read.csv("mumax_R.csv")
 colnames(data) <- c("Isolate","T","mumax","sqrt_mumax")
 
-Iso193<-subset(data,Isolate == "193")
-fit <- lm(Iso193$sqrt_mumax ~ Iso193$T)
-plot(Iso193$T,Iso193$sqrt_mumax,
-     ylim = c(0,1.5),
+Iso649<-subset(data,Isolate == "649")
+fit <- lm(Iso649$sqrt_mumax ~ Iso649$T)
+plot(Iso457$T,Iso457$sqrt_mumax,
+     ylim = c(0,4),
      xlim = c(0,24))
 abline(fit)
 summary(fit)
 
-sqrt_mumax = 0.04495 *T - 0.20936
+sqrt_mumax = 0.067519 *T + 0.468946
   
-b_193 <- coef(fit) [2]
-Tmin_193 <- 0.20936/0.04495
+b_649 <- coef(fit) [2]
+Tmin_407 <- -0.468946/0.067519
