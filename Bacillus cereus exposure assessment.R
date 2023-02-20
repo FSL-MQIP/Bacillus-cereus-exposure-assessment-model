@@ -146,8 +146,8 @@ for (i in 1:n_sim){
   temps[i] <- number
 }
 data$T_H <- temps
-## (b) Define t_H as 14, 31 days for all units
-data$t_H <- rep(31, each = n_sim)
+## (b) Define t_H as 14, 35 days for all units
+data$t_H <- rep(35, each = n_sim)
 
 ## Model temperature profiles of 100 units HTST milk 
 env_cond_time <- matrix(c(rep(0,100),
@@ -178,8 +178,13 @@ plot(env_cond_time[1,],env_cond_temp[1,]) # check the temperature profile
 #################################### run the codes below to implement the model####################################
 # Scenario: Samples from a lot of products test positive for B cereus (Iso649) at a concentration of 100 CFU/ml
 # Import growth parameters
-growth_data = read.csv("growth data for dynamic prediction_R.csv")
+growth_data = read.csv("growth data for dynamic prediction_R_2.csv")
 colnames(growth_data) = c("isolate","lag","mumax",'Nmax','Tmin','b','group','Topt')
+growth_data$lag = as.numeric(growth_data$lag)
+growth_data$mumax = as.numeric(growth_data$mumax)
+growth_data$Nmax = as.numeric(growth_data$Nmax)
+growth_data$Tmin = as.numeric(growth_data$Tmin)
+growth_data$b = as.numeric(growth_data$b)
 
 # Subset data for each isolate 
 Iso649 = subset(growth_data,isolate == 649)
@@ -215,13 +220,16 @@ for (i in 1:n_sim){
 }
 
 # Generate output 
-data_649_d14<-data
-Iso649_d14_HR = sum(data_649_d14$conc>5)/100
+data_649_d35<-data
+Iso649_d35_5log = sum(data_649_d35$conc>5)/100
 
-data_combined <- rbind(data_193_d14,data_194_d14,data_402_d14,data_407_d14,
-                       data_413_d14,data_433_d14,data_457_d14,data_474_d14, 
-                       data_495_d14,data_518_d14,data_536_d14,data_564_d14,
-                       data_570_d14,data_638_d14,data_649_d14)
+data_final <- rbind(data_193_d14,data_194_d14,data_402_d14,data_407_d14,
+                    data_413_d14,data_433_d14,data_457_d14,data_474_d14, 
+                    data_495_d14,data_518_d14,data_536_d14,data_564_d14,
+                    data_570_d14,data_638_d14,data_649_d14,
+                    data_193_d35,data_194_d35,data_402_d35,data_407_d35,
+                    data_413_d35,data_433_d35,data_457_d35,data_474_d35, 
+                    data_495_d35,data_518_d35,data_536_d35,data_564_d35,
+                    data_570_d35,data_638_d35,data_649_d35)
 
-write.csv(data_combined,"data_combined.csv")
-
+write.csv(data_final,"data_final.csv")

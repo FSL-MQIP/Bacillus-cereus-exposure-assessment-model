@@ -1,18 +1,18 @@
 data <- read.csv("mumax_R.csv")
 colnames(data) <- c("Isolate","T","mumax","sqrt_mumax")
 
-Iso194<-subset(data,Isolate == "194")
-fit <- lm(Iso194$sqrt_mumax ~ Iso194$T)
-plot(Iso194$T,Iso194$sqrt_mumax,
+Iso649<-subset(data,Isolate == "649")
+fit <- lm(Iso649$sqrt_mumax ~ Iso649$T)
+plot(Iso649$T,Iso649$sqrt_mumax,
      ylim = c(0,5),
      xlim = c(0,24),
-     main = "Isolate 194 Secondary Model",
+     main = "Isolate 649",
      xlab = "Temperature, °C",
-     ylab = "Square root of mumax, ln CFU/mL h-1)1/2")
+     ylab = "Square root of mumax,sqrt(log CFU/mL per day)")
 abline(fit)
 summary(fit)
 
-sqrt_mumax = 0.12459 *T - 0.65114
+sqrt_mumax = 0.13263 *T - 0.8159
   
 b_649 <- coef(fit) [2]
-Tmin_649 <- 0.65114/0.12459
+Tmin_649 <- 0.8159/0.13263
