@@ -192,7 +192,7 @@ Iso649 = subset(growth_data,isolate == 649)
 # Prepare model input
 mu = Iso649$mumax    # 10dC rep1 bar data, mu is in log 10 CFU/mL per day 
 lambda = Iso649$lag         # 10dC rep 1 bar data, lambda is in d
-Q0 = lambda_to_Q0(lambda, mu, logbase_mu = 10)
+Q0 = lambda_to_Q0(lambda, mu, logbase_mu = 10)    # lambda or mu cannot equal to 0
 xmin = Iso649$Tmin
 b = Iso649$b 
 mu_opt = (b*(xopt_func("IV")-xmin))^2 # assume (Topt,sqrt(mu_opt)) is on the linear region 

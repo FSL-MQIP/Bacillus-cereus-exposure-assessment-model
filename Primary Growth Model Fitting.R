@@ -23,10 +23,11 @@ source("UtilityFunctions.R")
 #Note: This is an example of Isolate193Rep2 (10dC data). The code applies to other samples by changing sample names
 
 # Subset data 
-Iso193Rep2 <- subset(data_10dC_new, Isolate == "193" & Rep =="2")
+Iso413Rep1_10dC <- subset(data_10dC, Isolate == "413" & Rep =="rep1")
+colnames(Iso413Rep1_10dC) = c("t","Rep","LOG10N","Isolate")
 
-plot(Iso193Rep2$t,Iso193Rep2$LOG10N)
-mod <- lm(Iso193Rep2$LOG10N ~ Iso193Rep2$t)
+plot(Iso413Rep1_10dC$t,Iso413Rep1_10dC$LOG10N)
+mod <- lm(Iso649Rep2$LOG10N ~ Iso649Rep2$t)
 slope <- coef(mod) [2]
 slope
 
@@ -51,12 +52,12 @@ Iso193Rep2.gom_LM <- nlsLM(LOG10N ~ gompertz_log10N(t,lag,mumax,LOG10N0,LOG10Nma
                            lower = c(0,0,0,0))
 
 # Fit Baranyi 
-Iso193Rep2.bar_LM <- nlsLM(LOG10N ~ baranyi_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso193Rep2,
+Iso649Rep2.bar_LM <- nlsLM(LOG10N ~ baranyi_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso649Rep2,
                            start=list (
                            LOG10N0 = 3,
-                           lag = 161, 
-                           mumax = 0.046, 
-                           LOG10Nmax = 6), 
+                           lag = 8, 
+                           mumax = 0.43, 
+                           LOG10Nmax = 6.5), 
                            lower = c(0,0,0,0))
 
 # Collect growth parameters estimated from 3 primary growth models
