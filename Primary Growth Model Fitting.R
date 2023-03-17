@@ -14,6 +14,9 @@ data2 <-read.csv("data2.csv") #data added for Isolate457Rep3 & Rep4, Isolate536R
 data_10dC <- read.csv("SMB_10degC_Compiled.csv")
 data_10dC <- data_10dC[,1:4]
 data_10dC_new <- read.csv("Iso_193_10degC.csv")
+colnames(data_10dC) = c("t","Rep","LOG10N","Isolate")
+data_10dC$t = as.numeric(data_10dC$t)
+data_10dC$LOG10N = as.numeric(data_10dC$LOG10N)
 
 
 # Load primary growth models
@@ -23,64 +26,64 @@ source("UtilityFunctions.R")
 #Note: This is an example of Isolate193Rep2 (10dC data). The code applies to other samples by changing sample names
 
 # Subset data 
-Iso413Rep1_10dC <- subset(data_10dC, Isolate == "413" & Rep =="rep1")
-colnames(Iso413Rep1_10dC) = c("t","Rep","LOG10N","Isolate")
+Iso413Rep1 <- subset(data_10dC, Isolate == "413" & Rep =="rep1")
+Iso413Rep1 <- Iso413Rep1[1:6,]
 
-plot(Iso413Rep1_10dC$t,Iso413Rep1_10dC$LOG10N)
-mod <- lm(Iso649Rep2$LOG10N ~ Iso649Rep2$t)
+plot(Iso413Rep1$t,Iso413Rep1$LOG10N)
+mod <- lm(Iso413Rep1$LOG10N[1:6] ~ Iso413Rep1$t[1:6])
 slope <- coef(mod) [2]
-slope
+slope*2.303
 
 
-# Fit primary growth models 
+# Fit primary growth models (note down the starting values)
 # Fit Buchanan 
-Iso193Rep2.buc_LM<- nlsLM(LOG10N ~ buchanan_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso193Rep2,
+Iso536Rep1.buc_LM<- nlsLM(LOG10N ~ buchanan_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso536Rep1,
                           start=list (
-                          LOG10N0 = 3,
-                          lag = 100, 
-                          mumax = 0.006, 
+                          LOG10N0 = 3.5,
+                          lag = 8, 
+                          mumax = 0.3723931, 
                           LOG10Nmax = 6), 
                           lower = c(0,0,0,0))
 
 # Fit Gompertz 
-Iso193Rep2.gom_LM <- nlsLM(LOG10N ~ gompertz_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso193Rep2,
+Iso649Rep2.gom_LM <- nlsLM(LOG10N ~ gompertz_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso649Rep2,
                            start=list (
                            LOG10N0 = 3,
-                           lag = 100,
-                           mumax = 0.006,
-                           LOG10Nmax = 6), 
-                           lower = c(0,0,0,0))
-
-# Fit Baranyi 
-Iso649Rep2.bar_LM <- nlsLM(LOG10N ~ baranyi_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso649Rep2,
-                           start=list (
-                           LOG10N0 = 3,
-                           lag = 8, 
-                           mumax = 0.43, 
+                           lag = 8,
+                           mumax =  0.4745186,
                            LOG10Nmax = 6.5), 
                            lower = c(0,0,0,0))
 
+# Fit Baranyi 
+Iso413Rep1.bar_LM <- nlsLM(LOG10N ~ baranyi_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=Iso413Rep1,
+                           start=list (
+                            LOG10N0 = 3.5,
+                            lag = 24, 
+                            mumax =  0.04986383, 
+                            LOG10Nmax = 7),
+                            lower = c(0,0,0,0))
+                           
 # Collect growth parameters estimated from 3 primary growth models
-Iso193Rep2_buccoef<-coef(Iso193Rep2.buc_LM)
-Iso193Rep2_gomcoef<-coef(Iso193Rep2.gom_LM)
-Iso193Rep2_barcoef<-coef(Iso193Rep2.bar_LM)
+Iso457Rep3_buccoef<-coef(Iso457Rep3.buc_LM)
+Iso649Rep2_gomcoef<-coef(Iso649Rep2.gom_LM)
+Iso649Rep2_barcoef<-coef(Iso649Rep2.bar_LM)
 
 # Compute AIC, BIC, RMSE for 3 primary growth models
 AIC_Iso193Rep2_buc=AIC(Iso193Rep2.buc_LM)
 BIC_Iso193Rep2_buc=BIC(Iso193Rep2.buc_LM)
-Iso193resid.buc = c(Iso193Rep1.buc_LM$m$resid(), Iso193Rep2.buc_LM$m$resid())
-Iso193rmse.buc = sqrt(sum(Iso193resid.buc^2)/length(Iso193resid.buc))
+Iso649resid.buc = c(Iso649Rep1.buc_LM$m$resid(), Iso649Rep2.buc_LM$m$resid())
+Iso649rmse.buc = sqrt(sum(Iso649resid.buc^2)/length(Iso649resid.buc))
 
 AIC_Iso193Rep1_gom=AIC(Iso193Rep1.gom_LM)
 BIC_Iso193Rep1_gom=BIC(Iso193Rep1.gom_LM)
-Iso193resid.gom = c(Iso193Rep1.gom_LM$m$resid(), Iso193Rep2.gom_LM$m$resid())
-Iso193rmse.gom = sqrt(sum(Iso193resid.gom^2)/length(Iso193resid.gom))
+Iso649resid.gom = c(Iso649Rep1.gom_LM$m$resid(), Iso649Rep2.gom_LM$m$resid())
+Iso649rmse.gom = sqrt(sum(Iso649resid.gom^2)/length(Iso649resid.gom))
 
 
 AIC_Iso193Rep1_bar=AIC(Iso193Rep1.bar_LM)
 BIC_Iso193Rep1_bar=BIC(Iso193Rep1.bar_LM)
-Iso193resid.bar = c(Iso193Rep1.bar_LM$m$resid(), Iso193Rep2.bar_LM$m$resid())
-Iso193rmse.bar = sqrt(sum(Iso193resid.bar^2)/length(Iso193resid.bar))
+Iso649resid.bar = c(Iso649Rep1.bar_LM$m$resid(), Iso649Rep2.bar_LM$m$resid())
+Iso649rmse.bar = sqrt(sum(Iso649resid.bar^2)/length(Iso649resid.bar))
 
 #Note: Isolate433Rep2 (22dC data) has an estimated lag time of 0 after fitting into Buchanan, Gompertz, Baranyi models
 #Isolate433Rep1&2 are then fitted into Buchanan_without-lag and Baranyi_without_lag
@@ -89,7 +92,7 @@ Iso193rmse.bar = sqrt(sum(Iso193resid.bar^2)/length(Iso193resid.bar))
 Iso433Rep2.buc_nolag_LM<- nlsLM(LOG10N ~ buchanan_without_lag_log10N(t,mumax,LOG10N0,LOG10Nmax), data=Iso433Rep2,
                                 start=list (
                                 LOG10N0 = 3.5,
-                                mumax = 0.3, 
+                                mumax = 0.3227814, 
                                 LOG10Nmax = 7), 
                                 lower = c(0,0,0))
 
@@ -97,7 +100,7 @@ Iso433Rep2.buc_nolag_LM<- nlsLM(LOG10N ~ buchanan_without_lag_log10N(t,mumax,LOG
 Iso433Rep2.bar_nolag_LM<- nlsLM(LOG10N ~ baranyi_without_lag_log10N(t,mumax,LOG10N0,LOG10Nmax), data=Iso433Rep2,
                                 start=list (
                                 LOG10N0 = 3.5,
-                                mumax = 0.3, 
+                                mumax = 0.3227814, 
                                 LOG10Nmax = 7), 
                                 lower = c(0,0,0))
 
@@ -118,8 +121,8 @@ Iso433rmse.bar_nolag = sqrt(sum(Iso433resid.bar_nolag^2)/length(Iso433resid.bar_
 
 
 # Combine growth parameters, AIC, BIC data for each isolate 
-Iso193parameters<- rbind(Iso193Rep1_buccoef,Iso193Rep1_gomcoef,Iso193Rep1_barcoef,
-                         Iso193Rep2_buccoef,Iso193Rep2_gomcoef,Iso193Rep2_barcoef)
+Iso564parameters<- rbind(Iso564Rep1_buccoef,Iso564Rep1_gomcoef,Iso564Rep1_barcoef,
+                         Iso564Rep2_buccoef,Iso564Rep2_gomcoef,Iso564Rep2_barcoef)
 AIC<-rbind(AIC_Iso193Rep1_buc,AIC_Iso193Rep1_gom,AIC_Iso193Rep1_bar,
            AIC_Iso193Rep2_buc,AIC_Iso193Rep2_gom,AIC_Iso193Rep2_bar)
 rownames(AIC)<-c("Iso193Rep1_buccoef","Iso193Rep1_gomcoef","Iso193Rep1_barcoef",
@@ -137,11 +140,13 @@ RMSE_193<-rbind(Iso193rmse.buc,Iso193rmse.gom,Iso193rmse.bar)
 colnames(RMSE_193)<-c("RMSE")
 
 # Generate output
-Result_10dC<-rbind(Result_193,Result_194,Result_402,Result_407,Result_413,Result_433,
-              Result_457,Result_474,Result_495,Result_518,Result_536,Result_564,
-              Result_570,Result_638,Result_649)
-as.data.frame(Result_10dC)
-write.csv(Result_10dC,"Result_10dC.csv")
+Result_22dC_new<-rbind(Iso193parameters,Iso194parameters,Iso125parameters,Iso135parameters,
+                       Iso402parameters,Iso407parameters,Iso413parameters,Iso457parameters,
+                       Iso474parameters,Iso495parameters,Iso518parameters,Iso536parameters,
+                       Iso564parameters,Iso570parameters,Iso638parameters,Iso649parameters)
+
+as.data.frame(Result_22dC_new)
+write.csv(Result_22dC_new,"Result_22dC_new.csv")
 
 RMSE_10dC<-rbind(RMSE_193,RMSE_194,RMSE_402,RMSE_407,RMSE_413,RMSE_433,RMSE_457,
             RMSE_474,RMSE_495,RMSE_518,RMSE_536,RMSE_564,RMSE_570,RMSE_638,RMSE_649)
