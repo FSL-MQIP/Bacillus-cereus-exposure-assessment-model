@@ -1,23 +1,22 @@
-# load packages 
+# load packages
 library(nlsMicrobio)
 library(minpack.lm)
 
 # load primary growth models
 source("UtilityFunctions_baranyi.R")
 
-# import data 
-# growth data set 
-data <-read.csv("InputFiles/data_10_new.csv")
-colnames(data) = c("t","Rep","LOG10N","Isolate")
-data$t = as.numeric(data$t)
-data$LOG10N = as.numeric(data$LOG10N)
+# fit 22 dC growth data 
+# import growth data set 
+# 22dC growth data 
+data1 <-read.csv("InputFiles/data_22_new.csv")
 
 # create a list of data frames, one for each isolate and rep
-data_list <- split(data, list(data$Isolate, data$Rep))
+data_list <- split(data1, list(data1$Isolate, data1$Rep))
 
-# starting values
-starting_values_10dC <-read.csv("InputFiles/Starting values_10dC.csv")
+# 22dC starting values
+starting_values_22dC <-read.csv("InputFiles/Starting values_22dC.csv")
 
+# subset data and fit Baranyi model
 # initialize a list to store the fits
 fit_list <- list()
 
@@ -31,10 +30,10 @@ for (i in 1:length(data_list)) {
   rep <- unique(sub_data$Rep)
   
   # set the starting values for the current isolate and rep
-  start_values <- c(LOG10N0 = starting_values_10dC$LOG10N0[i],
-                    lag = starting_values_10dC$lag[i],
-                    mumax = starting_values_10dC$mumax[i],
-                    LOG10Nmax = starting_values_10dC$LOG10Nmax[i])
+  start_values <- c(LOG10N0 = starting_values_22dC$LOG10N0[i],
+                    lag = starting_values_22dC$lag[i],
+                    mumax = starting_values_22dC$mumax[i],
+                    LOG10Nmax = starting_values_22dC$LOG10Nmax[i])
   
   # fit the Baranyi model to the subset of data
   fit <- nlsLM(LOG10N ~ baranyi_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=sub_data,
@@ -43,11 +42,13 @@ for (i in 1:length(data_list)) {
   
   # add the fit and its summary to the fit list
   fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, coef=coefficients(fit))
+  fit_list[[i]]$rsq <- summary(fit)$r.squared
 }
 
+# combine data and generate output 
 # combine the fits into a single data frame
 fits <- do.call(rbind, fit_list)
 
 # generate output
-write.csv(fits,"OutputFiles/gp_10dC_new.csv")
+write.csv(fits,"gp_22dC_new.csv")
 
