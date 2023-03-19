@@ -81,19 +81,6 @@ function (this_t, env_func, sec_models)
   out
 }
 
-# select different xopt by different group names 
-xopt_func <- function(group_name){
-  if(group_name == "II")
-  {return(36.31)}
-  else if(group_name == "III")
-  {return(39.27)}
-  else if(group_name == "IV")
-  {return(38.735)}
-  else if(group_name == "V")
-  {return(37.375)}
-  else (group_name == "VII")
-  {return(42.35)}
-}
 
 ## Set up dataframe for modeling 100 units of HTST milk 
 n_sim = 100
@@ -163,10 +150,24 @@ env_cond_temp <- matrix(c(data$T_F,
                           data$T_H,
                           data$T_H), ncol = 10)
 
-# define the new secondary model 
+## Define function to select Topt by groups
+xopt_func <- function(group_name){
+  if(group_name == "II")
+  {return(36.31)}
+  else if(group_name == "III")
+  {return(39.27)}
+  else if(group_name == "IV")
+  {return(38.735)}
+  else if(group_name == "V")
+  {return(37.375)}
+  else (group_name == "VII")
+  {return(42.35)}
+}
+
+## Simulate Isolate 649 as an example
+## Define new secondary model 
 reduced_Ratkowski = function(x, xmin, b){
-  xopt = xopt_func("IV")                   # change for different B cereus groups to give different xopt                          
-  mu_opt = b * (xopt - xmin)
+  mu_opt = b * (xopt_func("IV") - xmin)
   gamma = b * (x - xmin)
   gamma <- gamma/mu_opt
   gamma <- gamma^2
@@ -174,7 +175,6 @@ reduced_Ratkowski = function(x, xmin, b){
   return(gamma)
 }
 
-#################################### run the codes below to implement the model####################################
 # Import data set
 data_Q0 = read.csv("OutputFiles/Q0_h0_summary.csv")
 data_Nmax = read.csv("OutputFiles/Nmax_new.csv")
@@ -184,7 +184,7 @@ group = c("I","I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II"
 # Generate simulation input
 simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, Nmax = data_Nmax$average_Nmax, 
                                b = data_sec_model$b, Tmin = data_sec_model$Tmin, group = group)
-
+simulation_input <- simulation_input[3:17,]
 colnames(simulation_input) = c("isolate","Q0","Nmax","b","Tmin","group")
 
 simulation_input$Q0 = as.numeric (simulation_input$Q0)
