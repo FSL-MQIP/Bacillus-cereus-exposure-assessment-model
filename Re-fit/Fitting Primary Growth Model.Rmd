@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # set work directory 
 ```{r}
-setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
+setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
 ```
 
 # load packages
@@ -75,7 +75,7 @@ for (i in 1:length(data_list)) {
 fits <- do.call(rbind, fit_list)
 
 # generate output
-write.csv(fits,"gp_22dC_new.csv")
+write.csv(fits,"OutpuFiles/gp_22dC_new.csv")
 ```
 
 # fit 10 dC growth data 

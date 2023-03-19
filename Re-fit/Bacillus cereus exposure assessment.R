@@ -1,3 +1,5 @@
+setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
+
 library(biogrowth)
 library(tibble)
 library(EnvStats) # to load rtri function 
@@ -57,30 +59,6 @@ secondary_model_data <- function (model_name = NULL) {
   }
 }
 
-# select different xopt by different group names 
-xopt_func <- function(group_name){
-  if(group_name == "II")
-  {return(36.31)}
-  else if(group_name == "III")
-  {return(39.27)}
-  else if(group_name == "IV")
-  {return(38.735)}
-  else if(group_name == "V")
-  {return(37.375)}
-  else (group_name == "VII")
-  {return(42.35)}
-}
-
-# define the new secondary model 
-reduced_Ratkowski = function(x, xmin, b){
-  xopt = xopt_func("IV")                   # change for different B cereus groups to give different xopt                          
-  mu_opt = b * (xopt - xmin)
-  gamma = b * (x - xmin)
-  gamma <- gamma/mu_opt
-  gamma <- gamma^2
-  gamma[x < xmin] <- 0
-  return(gamma)
-}
 
 # trace(biogrowth:::calculate_gammas, edit = T)
 # change the function to the following codes (add a line for reduced_Ratkowski):
@@ -103,6 +81,19 @@ function (this_t, env_func, sec_models)
   out
 }
 
+# select different xopt by different group names 
+xopt_func <- function(group_name){
+  if(group_name == "II")
+  {return(36.31)}
+  else if(group_name == "III")
+  {return(39.27)}
+  else if(group_name == "IV")
+  {return(38.735)}
+  else if(group_name == "V")
+  {return(37.375)}
+  else (group_name == "VII")
+  {return(42.35)}
+}
 
 ## Set up dataframe for modeling 100 units of HTST milk 
 n_sim = 100
@@ -172,34 +163,38 @@ env_cond_temp <- matrix(c(data$T_F,
                           data$T_H,
                           data$T_H), ncol = 10)
 
-
-plot(env_cond_time[1,],env_cond_temp[1,]) # check the temperature profile
+# define the new secondary model 
+reduced_Ratkowski = function(x, xmin, b){
+  xopt = xopt_func("IV")                   # change for different B cereus groups to give different xopt                          
+  mu_opt = b * (xopt - xmin)
+  gamma = b * (x - xmin)
+  gamma <- gamma/mu_opt
+  gamma <- gamma^2
+  gamma[x < xmin] <- 0
+  return(gamma)
+}
 
 #################################### run the codes below to implement the model####################################
-# Scenario: Samples from a lot of products test positive for B cereus (Iso649) at a concentration of 100 CFU/ml
 # Import growth parameters
-growth_data = read.csv("growth data for dynamic prediction_R_2.csv")
-colnames(growth_data) = c("isolate","lag","mumax",'Nmax','Tmin','b','group','Topt')
-growth_data$lag = as.numeric(growth_data$lag)
-growth_data$mumax = as.numeric(growth_data$mumax)
-growth_data$Nmax = as.numeric(growth_data$Nmax)
-growth_data$Tmin = as.numeric(growth_data$Tmin)
-growth_data$b = as.numeric(growth_data$b)
+simulation_input = read.csv("InputFiles/simulation_input.csv")
+colnames(simulation_input) = c("isolate","Q0","Nmax","b","Tmin","group")
+simulation_input$Q0 = as.numeric (simulation_input$Q0)
+simulation_input$Nmax = as.numeric(simulation_input$Nmax)
+simulation_input$Tmin = as.numeric(simulation_input$Tmin)
+simulation_input$b = as.numeric(simulation_input$b)
 
 # Subset data for each isolate 
-Iso649 = subset(growth_data,isolate == 649)
+Iso649 = subset(simulation_input,isolate == 649)
 
 # Prepare model input
-mu = Iso649$mumax    # 10dC rep1 bar data, mu is in log 10 CFU/mL per day 
-lambda = Iso649$lag         # 10dC rep 1 bar data, lambda is in d
-Q0 = lambda_to_Q0(lambda, mu, logbase_mu = 10)    # lambda or mu cannot equal to 0
 xmin = Iso649$Tmin
 b = Iso649$b 
 mu_opt = (b*(xopt_func("IV")-xmin))^2 # assume (Topt,sqrt(mu_opt)) is on the linear region 
+Q0 = Iso649$Q0
 
 # Run the models 
 my_primary <- list(mu_opt = mu_opt, 
-                   Nmax = Iso649$Nmax,     # 10dC rep 1 bar data, Nmax is in CFU/mL 
+                   Nmax = Iso649$Nmax,     
                    N0 = 1e2,          # depending on product testing result, assumed in this case 
                    Q0 = Q0)
 
@@ -223,13 +218,29 @@ for (i in 1:n_sim){
 data_649_d35<-data
 Iso649_d35_5log = sum(data_649_d35$conc>5)/100
 
-data_final <- rbind(data_193_d14,data_194_d14,data_402_d14,data_407_d14,
+simulation_result_d14 <- rbind(data_193_d14,data_194_d14,data_402_d14,data_407_d14,
                     data_413_d14,data_433_d14,data_457_d14,data_474_d14, 
                     data_495_d14,data_518_d14,data_536_d14,data_564_d14,
-                    data_570_d14,data_638_d14,data_649_d14,
-                    data_193_d35,data_194_d35,data_402_d35,data_407_d35,
-                    data_413_d35,data_433_d35,data_457_d35,data_474_d35, 
-                    data_495_d35,data_518_d35,data_536_d35,data_564_d35,
-                    data_570_d35,data_638_d35,data_649_d35)
+                    data_570_d14,data_638_d14,data_649_d14)
 
-write.csv(data_final,"data_final.csv")
+simulation_result_d35 <- rbind(data_193_d35,data_194_d35,data_402_d35,data_407_d35,
+                               data_413_d35,data_433_d35,data_457_d35,data_474_d35, 
+                               data_495_d35,data_518_d35,data_536_d35,data_564_d35,
+                               data_570_d35,data_638_d35,data_649_d35)
+
+prediction_result_d14 <- c(0.03,0.03,0.05,0.03,0.03,0.02,0.03,0.03,0.03,0.03,0.03,0.03,0.03,0.04,0.03)
+prediction_result_d35 <- c(0.04,0.05,0.15,0.03,0.13,0.04,0.06,0.05,0.04,0.05,0.04,0.1,0.1,0.13,0.04)
+prediction_result <- cbind(prediction_result_d14,prediction_result_d35)
+rownames(prediction_result) <- c("193","194","402","407","413","433","457","474",
+                                 "495","518","536","564","570","638","649")
+
+mean_d14 = mean(prediction_result_d14)
+sd_d14 = sd(prediction_result_d14)
+
+mean_d35 = mean(prediction_result_d35)
+sd_d35 = sd(prediction_result_d35)
+
+mean = c(0.03,0.07)
+sd = c(0.0064,0.0404)
+prediction_result_refit = rbind(prediction_result,mean,sd)
+write.csv(prediction_result_refit,"OutputFiles/prediction_result_refit.csv")

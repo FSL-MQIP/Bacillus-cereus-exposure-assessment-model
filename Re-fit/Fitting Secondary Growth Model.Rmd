@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # set work directory
 ```{r}
-setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
+setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
 ```
 
 # import data set
