@@ -2,7 +2,14 @@
 setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
 
 # Import data set
-Nmax_table <- read.csv("InputFiles/Nmax.csv")
+data_22dC <- read.csv("OutputFiles/gp_22dC_new.csv")
+data_22dC$T <- rep(22,34)
+data_10dC <- read.csv("OutputFiles/gp_10dC_new.csv")
+data_10dC$T <- rep(10,30)
+
+# Generate Nmax table
+Nmax_table <- rbind(data_22dC,data_10dC)
+Nmax_table <- Nmax_table[,c("isolate","rep","LOG10Nmax","T")]
 colnames(Nmax_table) <- c("isolate", "rep", "LOG10Nmax","T")
 
 # calculate average Nmax by isolate

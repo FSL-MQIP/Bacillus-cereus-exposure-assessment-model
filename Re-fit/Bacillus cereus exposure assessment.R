@@ -175,9 +175,18 @@ reduced_Ratkowski = function(x, xmin, b){
 }
 
 #################################### run the codes below to implement the model####################################
-# Import growth parameters
-simulation_input = read.csv("InputFiles/simulation_input.csv")
+# Import data set
+data_Q0 = read.csv("OutputFiles/Q0_h0_summary.csv")
+data_Nmax = read.csv("OutputFiles/Nmax_new.csv")
+data_sec_model = read.csv("OutputFiles/sec_model_new.csv")
+group = c("I","I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
+
+# Generate simulation input
+simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, Nmax = data_Nmax$average_Nmax, 
+                               b = data_sec_model$b, Tmin = data_sec_model$Tmin, group = group)
+
 colnames(simulation_input) = c("isolate","Q0","Nmax","b","Tmin","group")
+
 simulation_input$Q0 = as.numeric (simulation_input$Q0)
 simulation_input$Nmax = as.numeric(simulation_input$Nmax)
 simulation_input$Tmin = as.numeric(simulation_input$Tmin)

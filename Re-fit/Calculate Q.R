@@ -2,8 +2,23 @@
 setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
 
 # Import data set
-h0_table <- read.csv("InputFiles/h0 table.csv")
-colnames(h0_table) <- c("isolate","rep","T","lag(h)","lag(day)","mumax (ln CFU/mL per h)","mumax (log10 CFU/mL per day)","h0")  
+data_22dC <- read.csv("OutputFiles/gp_22dC_new.csv")
+data_22dC$T <- rep(22,34)
+data_10dC <- read.csv("OutputFiles/gp_10dC_new.csv")
+data_10dC$T <- rep(10,30)
+
+# Generate h0 table
+h0_table <- rbind(data_22dC,data_10dC)
+h0_table <- h0_table[,c("isolate","rep","T","mumax",'lag')]
+h0_table$mumax2 <- h0_table$mumax/2.303*24
+h0_table$lag2 <- h0_table$lag/24
+colnames(h0_table) <- c("isolate","rep","T","mumax_ln_h","lag_h","mumax_log10_day","lag_day")  
+h0_table$h0 <- h0_table$mumax_log10_day*h0_table$lag_day
+h0_table <- h0_table[order(h0_table$isolate), ]
+h0_table <- h0_table[h0_table$lag_h != 0,]
+
+# Save file
+write.csv(h0_table,"OutputFiles/h0 table.csv")
 
 # Calculate Q0 for each isolate
 h0_table$Q0 <- 1/(exp(h0_table$h0)-1)

@@ -9,19 +9,16 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# set work directory 
+# set environment
 ```{r}
+# set work directory 
 setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
-```
 
 # load packages
-```{r}
 library(nlsMicrobio)
 library(minpack.lm)
-```
 
 # load primary growth models
-```{r}
 source("UtilityFunctions_baranyi.R")
 ```
 
@@ -63,19 +60,29 @@ for (i in 1:length(data_list)) {
                start = start_values, 
                lower = c(0,0,0,0))
   
+  # extract the model coefficients
+  coef_values <- coefficients(fit)
+  
   # add the fit and its summary to the fit list
-  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, coef=coefficients(fit))
-  fit_list[[i]]$rsq <- summary(fit)$r.squared
+  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, 
+                              LOG10N0 = coef_values["LOG10N0"],
+                              lag = coef_values["lag"],
+                              mumax = coef_values["mumax"],
+                              LOG10Nmax = coef_values["LOG10Nmax"])
 }
 ```
 
 # combine data and generate output 
 ```{r}
 # combine the fits into a single data frame
-fits <- do.call(rbind, fit_list)
+fits_22dC <- do.call(rbind, fit_list)
+
+# replace mumax of Iso433 rep1 and rep2 with refitted data 
+fits_22dC[8,] <- c(433,"rep1",3.536262,0,0.3104931,7.612875) # Iso433 rep1 @ 22dC
+fits_22dC[25,] <- c(433,"rep2",3.410224,0,0.3273839,7.43078) # Iso433 rep2 @ 22dC
 
 # generate output
-write.csv(fits,"OutpuFiles/gp_22dC_new.csv")
+write.csv(fits_22dC,"OutputFiles/gp_22dC_new.csv")
 ```
 
 # fit 10 dC growth data 
@@ -119,17 +126,27 @@ for (i in 1:length(data_list)) {
                start = start_values, 
                lower = c(0,0,0,0))
   
+  # extract the model coefficients
+  coef_values <- coefficients(fit)
+  
   # add the fit and its summary to the fit list
-  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, coef=coefficients(fit))
+  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, 
+                              LOG10N0 = coef_values["LOG10N0"],
+                              lag = coef_values["lag"],
+                              mumax = coef_values["mumax"],
+                              LOG10Nmax = coef_values["LOG10Nmax"])
 }
 ```
 
 # combine data and generate output 
 ```{r}
 # combine the fits into a single data frame
-fits <- do.call(rbind, fit_list)
+fits_10dC <- do.call(rbind, fit_list)
+
+# replace mumax of Iso413 rep1 with refitted data 
+fits_10dC[5,] <- c(413,"rep1",3.6478,27.8282,0.1143,7.3703)
 
 # generate output
-write.csv(fits,"OutputFiles/gp_10dC_new.csv")
+write.csv(fits_10dC,"OutputFiles/gp_10dC_new.csv")
 ```
 

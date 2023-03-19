@@ -40,9 +40,15 @@ for (i in 1:length(data_list)) {
                start = start_values, 
                lower = c(0,0,0,0))
   
+  # extract the model coefficients
+  coef_values <- coefficients(fit)
+  
   # add the fit and its summary to the fit list
-  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, coef=coefficients(fit))
-  fit_list[[i]]$rsq <- summary(fit)$r.squared
+  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep,
+                              LOG10N0 = coef_values["LOG10N0"],
+                              lag = coef_values["lag"],
+                              mumax = coef_values["mumax"],
+                              LOG10Nmax = coef_values["LOG10Nmax"])
 }
 
 # combine data and generate output 
