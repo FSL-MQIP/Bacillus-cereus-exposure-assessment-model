@@ -10,10 +10,10 @@ data_10dC$T <- rep(10,30)
 # Generate h0 table
 h0_table <- rbind(data_22dC,data_10dC)
 h0_table <- h0_table[,c("isolate","rep","T","mumax",'lag')]
-h0_table$mumax2 <- h0_table$mumax/2.303*24
+h0_table$mumax2 <- h0_table$mumax*24
 h0_table$lag2 <- h0_table$lag/24
-colnames(h0_table) <- c("isolate","rep","T","mumax_ln_h","lag_h","mumax_log10_day","lag_day")  
-h0_table$h0 <- h0_table$mumax_log10_day*h0_table$lag_day
+colnames(h0_table) <- c("isolate","rep","T","mumax_ln_h","lag_h","mumax_ln_day","lag_day")  
+h0_table$h0 <- h0_table$mumax_ln_day*h0_table$lag_day
 h0_table <- h0_table[order(h0_table$isolate), ]
 h0_table <- h0_table[h0_table$lag_h != 0,]
 
@@ -21,7 +21,7 @@ h0_table <- h0_table[h0_table$lag_h != 0,]
 write.csv(h0_table,"OutputFiles/h0 table.csv")
 
 # Calculate Q0 for each isolate
-h0_table$Q0 <- 1/(exp(h0_table$h0)-1)
+h0_table$Q0 <- 1/(exp(h0_table$h0)-1)    # mumax is in natural (i.e. exp(1)) scale to calculate h0 in this formula
 
 # Group the data by isolate and calculate the mean Q0 for each group
 grouped_Q0 <- aggregate(h0_table$Q0, by = list(h0_table$isolate), FUN = mean)

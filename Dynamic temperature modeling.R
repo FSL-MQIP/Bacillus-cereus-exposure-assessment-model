@@ -1,5 +1,3 @@
-setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model/Re-fit")
-
 library(biogrowth)
 library(tibble)
 library(EnvStats) # to load rtri function 
@@ -38,7 +36,7 @@ secondary_model_data <- function (model_name = NULL) {
                      
                      reducedRatkowsky = list(identifier = "reducedRatkowsky", 
                                              name = "Reduced Ratkowsky model", 
-                                             pars = c("xmin", "b","clade"),
+                                             pars = c("xmin", "b"),
                                              model = reduced_Ratkowski, 
                                              ref = paste("Ratkowsky, D. A., Lowry, R. K., McMeekin, T. A.,", 
                                             "Stokes, A. N., and Chandler, R. E. (1983). Model for", 
@@ -59,6 +57,30 @@ secondary_model_data <- function (model_name = NULL) {
   }
 }
 
+# select different xopt by different group names 
+xopt_func <- function(group_name){
+  if(group_name == "II")
+  {return(36.31)}
+  else if(group_name == "III")
+  {return(39.27)}
+  else if(group_name == "IV")
+  {return(38.735)}
+  else if(group_name == "V")
+  {return(37.375)}
+  else (group_name == "VII")
+  {return(42.35)}
+}
+
+# define the new secondary model 
+reduced_Ratkowski = function(x, xmin, b){
+  xopt = xopt_func("IV")                   # change for different B cereus groups to give different xopt                          
+  mu_opt = b * (xopt - xmin)
+  gamma = b * (x - xmin)
+  gamma <- gamma/mu_opt
+  gamma <- gamma^2
+  gamma[x < xmin] <- 0
+  return(gamma)
+}
 
 # trace(biogrowth:::calculate_gammas, edit = T)
 # change the function to the following codes (add a line for reduced_Ratkowski):
@@ -72,7 +94,7 @@ function (this_t, env_func, sec_models)
                          fullRatkowsky = full_Ratkowski(this_x, this_sec$xmin, this_sec$xmax, this_sec$c), 
                          CPM = CPM_model(this_x, this_sec$xmin, this_sec$xopt, this_sec$xmax, this_sec$n), 
                          Zwietering = zwietering_gamma(this_x, this_sec$xmin, this_sec$xopt, this_sec$n), 
-                         reducedRatkowsky = reduced_Ratkowski(this_x, this_sec$xmin, this_sec$b, this_sec$clade), 
+                         reducedRatkowsky = reduced_Ratkowski(this_x, this_sec$xmin, this_sec$b), 
                          stop(paste("Model",this_sec$model, "not known.")))
     this_gamma
   })
@@ -104,7 +126,6 @@ data$t_T <- rep(rtri(n_sim,min=1,max=10,mode=5))
 # Stage 3: storage/display at retail store
 ## (a)  Sample the temperature distribution
 data$T_S <- rep(rtruncnorm(n_sim,a=-1.4,b=5.4,mean=2.3,sd=1.8)) #truncated normal distribution
-
 ## (b) Sample the storage time (in days) distribution
 data$t_S <- rep(rtruncnorm(n_sim,a=0.042,b=10.0, mean=1.821,sd=3.3)) #truncated normal distribution
 
@@ -125,7 +146,7 @@ for (i in 1:n_sim){
   temps[i] <- number
 }
 data$T_H <- temps
-## (b) Define t_H as 14, 35 days for all units
+## (b) Define t_H as 0, 14, 35 days for all units
 data$t_H <- rep(35, each = n_sim)
 
 ## Model temperature profiles of 100 units HTST milk 
@@ -151,82 +172,57 @@ env_cond_temp <- matrix(c(data$T_F,
                           data$T_H,
                           data$T_H), ncol = 10)
 
-## Define function to select Topt by groups
-xopt_func <- function(clade){
-  if(clade == "II")
-  {return(36.31)}
-  else if(clade == "III")
-  {return(39.27)}
-  else if(clade == "IV")
-  {return(38.735)}
-  else if(clade == "V")
-  {return(37.375)}
-  else (clade == "VII")
-  {return(42.35)}
+
+plot(env_cond_time[1,],env_cond_temp[1,]) # check the temperature profile
+
+#################################### run the codes below to implement the model####################################
+# Scenario: Samples from a lot of products test positive for B cereus (Iso649) at a concentration of 100 CFU/ml
+# Import growth parameters
+growth_data = read.csv("growth data for dynamic prediction_R_2.csv")
+colnames(growth_data) = c("isolate","lag","mumax",'Nmax','Tmin','b','group','Topt')
+
+# Subset data for each isolate 
+Iso649 = subset(growth_data,isolate == 649)
+
+# Prepare model input
+mu = Iso649$mumax    # 10dC rep1 bar data, mu is in log 10 CFU/mL per day 
+lambda = Iso649$lag         # 10dC rep 1 bar data, lambda is in d
+Q0 = lambda_to_Q0(lambda, mu, logbase_mu = 10)
+xmin = Iso649$Tmin
+b = Iso649$b 
+mu_opt = (b*(xopt_func("IV")-xmin))^2 # assume (Topt,sqrt(mu_opt)) is on the linear region 
+
+# Run the models 
+my_primary <- list(mu_opt = mu_opt, 
+                   Nmax = Iso649$Nmax,     # 10dC rep 1 bar data, Nmax is in CFU/mL 
+                   N0 = 1e2,          # depending on product testing result, assumed in this case 
+                   Q0 = Q0)
+
+sec_temperature <- list(model = "reducedRatkowsky",  
+                        xmin = xmin, 
+                        b = b)    
+
+my_secondary <- list(temperature = sec_temperature)
+
+for (i in 1:n_sim){
+  growth = predict_dynamic_growth(times = env_cond_time[i,],
+                                        env_conditions = tibble(time = env_cond_time[i,],
+                                                                temperature = env_cond_temp[i,]),
+                                        my_primary,
+                                        my_secondary)
+  sim = growth$simulation
+  data$conc[i] = tail(sim$logN, 1)
 }
 
-## Define new secondary model 
-reduced_Ratkowski = function(x, xmin, b, clade){
-  mu_opt = b * (xopt_func(clade) - xmin)
-  gamma = b * (x - xmin)
-  gamma <- gamma/mu_opt
-  gamma <- gamma^2
-  gamma[x < xmin] <- 0
-  return(gamma)
-}
+# Generate output 
+data_649_d35<-data
+data_649_d35$isolate <- 649
+Iso649_d35_HR = sum(data_649_d35$conc>5)/100
 
-# Import data set
-data_Q0 = read.csv("OutputFiles/Q0_h0_summary.csv")
-data_Nmax = read.csv("OutputFiles/Nmax_new.csv")
-data_sec_model = read.csv("OutputFiles/sec_model_new.csv")
-clade = c("I","I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
+data_combined_d35 <- rbind(data_193_d35,data_194_d35,data_402_d35,data_407_d35,
+                       data_413_d35,data_433_d35,data_457_d35,data_474_d35, 
+                       data_495_d35,data_518_d35,data_536_d35,data_564_d35,
+                       data_570_d35,data_638_d35,data_649_d35)
 
-# Generate simulation input
-simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, Nmax = data_Nmax$average_Nmax, 
-                               b = data_sec_model$b, Tmin = data_sec_model$Tmin, clade = clade)
-simulation_input <- simulation_input[3:17,]
-
-# Run simulation for each isolate 
-# initialize a list to store the final concentrations
-final_conc_d35 <- list()
-prediction_result_d35 <- list()
-
-  # loop over each sample
-for (i in 1:nrow(simulation_input)) {
-  
-  # subset data by isolate
-  Iso <- simulation_input[i,]
-  
-  # Prepare model input
-  xmin = Iso$Tmin
-  b = Iso$b 
-  mu_opt = (b*(xopt_func(Iso$clade)-xmin))^2 # assume (Topt,sqrt(mu_opt)) is on the linear region 
-  Q0 = Iso$Q0
-  
-  # Run the models 
-  my_primary <- list(mu_opt = mu_opt,   # in log10 scale
-                     Nmax = Iso$Nmax,     
-                     N0 = 1e2,          
-                     Q0 = Q0)
-  
-  sec_temperature <- list(model = "reducedRatkowsky",  
-                          xmin = xmin, 
-                          b = b)    
-  
-  my_secondary <- list(temperature = sec_temperature)
-  
-  for (j in 1:n_sim){
-    growth = predict_dynamic_growth(times = env_cond_time[j,],
-                                    env_conditions = tibble(time = env_cond_time[j,],
-                                                            temperature = env_cond_temp[j,]),
-                                    my_primary,
-                                    my_secondary)
-    sim = growth$simulation
-    final_conc_d35[[i]][j] = tail(sim$logN, 1)
-    prediction_result_d35[[i]][j] = sum(sim$logN>5)/100
-  }
-}
-
-mean_d35 = mean(prediction_result_d35)
-sd_d35 = sd(prediction_result_d35)
+write.csv(data_combined_d35,"data_combined_d35.csv")
 

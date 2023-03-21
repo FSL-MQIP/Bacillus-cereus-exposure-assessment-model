@@ -37,7 +37,7 @@ df <- data.frame(isolate = isolate, T = T, mumax = mumax)
 data <- rbind(data_22dC_mumax,data_10dC_mumax,df)
 
 # covert unit and calculate square root 
-data$mumax_2 = data$mumax/2.303*24
+data$mumax_2 = data$mumax/log(10)*24
 data$sqrt_mumax_2 = sqrt(data$mumax_2)
 
 # change column names
