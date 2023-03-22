@@ -81,7 +81,6 @@ function (this_t, env_func, sec_models)
   out
 }
 
-
 ## Set up dataframe for modeling 100 units of HTST milk 
 n_sim = 100
 data = data.frame(unit_id = rep(seq(1,n_sim)))
@@ -179,12 +178,11 @@ reduced_Ratkowski = function(x, xmin, b, clade){
 data_Q0 = read.csv("OutputFiles/Q0_h0_summary.csv")
 data_Nmax = read.csv("OutputFiles/Nmax_new.csv")
 data_sec_model = read.csv("OutputFiles/sec_model_new.csv")
-clade = c("I","I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
+clade = c("II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
 
 # Generate simulation input
-simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, Nmax = data_Nmax$average_Nmax, 
-                               b = data_sec_model$b, Tmin = data_sec_model$Tmin, clade = clade)
-simulation_input <- simulation_input[3:17,]
+simulation_input <- data.frame(isolate = data_Q0$isolate[3:17], Q0 = data_Q0$Q0[3:17], Nmax = data_Nmax$average_Nmax[3:17], 
+                               b = data_sec_model$b[3:17], Tmin = data_sec_model$Tmin[3:17],clade)
 
 # Run simulation for each isolate 
 # initialize a list to store the final concentrations
@@ -216,6 +214,7 @@ for (i in 1:nrow(simulation_input)) {
   my_secondary <- list(temperature = sec_temperature)
   
   for (j in 1:n_sim){
+    # need to include temperature_clade in check_secondary_pars()
     growth = predict_dynamic_growth(times = env_cond_time[j,],
                                     env_conditions = tibble(time = env_cond_time[j,],
                                                             temperature = env_cond_temp[j,]),
