@@ -209,12 +209,12 @@ for (i in 1:nrow(simulation_input)) {
   
   sec_temperature <- list(model = "reducedRatkowsky",  
                           xmin = xmin, 
-                          b = b)    
+                          b = b,
+                          clade = Iso$clade)    
   
   my_secondary <- list(temperature = sec_temperature)
   
   for (j in 1:n_sim){
-    # need to include temperature_clade in check_secondary_pars()
     growth = predict_dynamic_growth(times = env_cond_time[j,],
                                     env_conditions = tibble(time = env_cond_time[j,],
                                                             temperature = env_cond_temp[j,]),
