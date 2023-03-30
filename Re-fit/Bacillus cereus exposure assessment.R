@@ -38,7 +38,7 @@ secondary_model_data <- function (model_name = NULL) {
                      
                      reducedRatkowsky = list(identifier = "reducedRatkowsky", 
                                              name = "Reduced Ratkowsky model", 
-                                             pars = c("xmin", "b","clade"),
+                                             pars = c("xmin", "b", "clade"),
                                              model = reduced_Ratkowski, 
                                              ref = paste("Ratkowsky, D. A., Lowry, R. K., McMeekin, T. A.,", 
                                             "Stokes, A. N., and Chandler, R. E. (1983). Model for", 
@@ -150,7 +150,7 @@ env_cond_temp <- matrix(c(data$T_F,
                           data$T_H,
                           data$T_H), ncol = 10)
 
-## Define function to select Topt by groups
+## Define function to select Topt by groups (from literature, create citation)
 xopt_func <- function(clade){
   if(clade == "II")
   {return(36.31)}
@@ -164,6 +164,18 @@ xopt_func <- function(clade){
   {return(42.35)}
 }
 
+# Import data set
+data_Q0 = read.csv("OutputFiles/Q0_h0_summary.csv")
+data_Nmax = read.csv("OutputFiles/Nmax_new.csv")
+data_sec_model = read.csv("OutputFiles/sec_model_new.csv")
+Clade = c("II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
+
+# Generate simulation input
+simulation_input <- data.frame(isolate = data_Q0$isolate[3:17], Q0 = data_Q0$Q0[3:17], Nmax = data_Nmax$average_Nmax[3:17], 
+                               b = data_sec_model$b[3:17], Tmin = data_sec_model$Tmin[3:17],Clade)
+simulation_input$Topt = sapply(simulation_input$Clade, xopt_func)
+simulation_input$mu_opt = (simulation_input$b*(simulation_input$Topt-simulation_input$Tmin))^2 
+
 ## Define new secondary model 
 reduced_Ratkowski = function(x, xmin, b, clade){
   mu_opt = b * (xopt_func(clade) - xmin)
@@ -174,23 +186,15 @@ reduced_Ratkowski = function(x, xmin, b, clade){
   return(gamma)
 }
 
-# Import data set
-data_Q0 = read.csv("OutputFiles/Q0_h0_summary.csv")
-data_Nmax = read.csv("OutputFiles/Nmax_new.csv")
-data_sec_model = read.csv("OutputFiles/sec_model_new.csv")
-clade = c("II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
-
-# Generate simulation input
-simulation_input <- data.frame(isolate = data_Q0$isolate[3:17], Q0 = data_Q0$Q0[3:17], Nmax = data_Nmax$average_Nmax[3:17], 
-                               b = data_sec_model$b[3:17], Tmin = data_sec_model$Tmin[3:17],clade)
-
 # Run simulation for each isolate 
 # initialize a list to store the final concentrations
-final_conc_d35 <- list()
-prediction_result_d35 <- list()
+final_conc_d35 <- vector(mode = "list", length = nrow(simulation_input))
 
-  # loop over each sample
+# loop over each sample
 for (i in 1:nrow(simulation_input)) {
+  
+  # initialize a list to store the final concentrations for this isolate
+  final_conc_isolate <- vector(mode = "list", length = n_sim)
   
   # subset data by isolate
   Iso <- simulation_input[i,]
@@ -198,7 +202,7 @@ for (i in 1:nrow(simulation_input)) {
   # Prepare model input
   xmin = Iso$Tmin
   b = Iso$b 
-  mu_opt = (b*(xopt_func(Iso$clade)-xmin))^2 # assume (Topt,sqrt(mu_opt)) is on the linear region 
+  mu_opt = Iso$mu_opt # assume (Topt,sqrt(mu_opt)) is on the linear region 
   Q0 = Iso$Q0
   
   # Run the models 
@@ -210,7 +214,7 @@ for (i in 1:nrow(simulation_input)) {
   sec_temperature <- list(model = "reducedRatkowsky",  
                           xmin = xmin, 
                           b = b,
-                          clade = Iso$clade)    
+                          clade = Iso$Clade)    
   
   my_secondary <- list(temperature = sec_temperature)
   
@@ -221,11 +225,24 @@ for (i in 1:nrow(simulation_input)) {
                                     my_primary,
                                     my_secondary)
     sim = growth$simulation
-    final_conc_d35[[i]][j] = tail(sim$logN, 1)
-    prediction_result_d35[[i]][j] = sum(sim$logN>5)/100
+    
+    # store the final concentration for this simulation
+    final_conc_isolate[[j]] <- tail(sim$logN, 1)
+    
   }
+  
+  # store the final concentrations for all simulations for this isolate
+  final_conc_d35[[i]] <- final_conc_isolate
 }
 
-mean_d35 = mean(prediction_result_d35)
-sd_d35 = sd(prediction_result_d35)
+# Convert the list of 15 elements into a matrix
+matrix <- t(sapply(final_conc_d35, unlist))
+
+# Calculate the percentage over 5 for each row (element) in the matrix
+percent_over_5_d35 <- rowMeans(matrix > 5) * 100
+simulation_input$percent_over_5_d35 = percent_over_5_d35
+
+# Output 
+Result = simulation_input
+write.csv(Result,"OutputFiles/Result.csv")
 
