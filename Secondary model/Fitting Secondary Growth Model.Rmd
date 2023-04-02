@@ -1,0 +1,76 @@
+---
+title: "Fitting Secondary Model"
+author: "Jun Su"
+date: "2023-03-17"
+output: pdf_document
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
+```
+
+# generate input file
+```{r}
+# import 22dC and 10dC growth parameters
+data_22dC <- read.csv("Secondary model/InputFiles/gp_22dC_new.csv")
+data_22dC$temp <- rep(22,34)
+data_22dC_mumax <- data_22dC[,c("isolate","temp","mumax")]
+data_10dC <- read.csv("Secondary model/InputFiles/gp_10dC_new.csv")
+data_10dC$temp <- rep(10,30)
+data_10dC_mumax <- data_10dC[,c("isolate","temp","mumax")]
+
+# incorporate growth/no growth data 
+isolate <- data_22dC$isolate[!(data_22dC$isolate == 125 | data_22dC$isolate == 135)]
+temp <- rep(8,30)
+temp[14]<-6
+temp[29]<-6
+mumax <- rep(0,30)
+df <- data.frame(isolate = isolate, temp = temp, mumax = mumax)
+
+# combine data
+data <- rbind(data_22dC_mumax,data_10dC_mumax,df)
+
+# covert unit and calculate square root 
+data$mumax_2 = data$mumax/log(10)*24
+data$sqrt_mumax_2 = sqrt(data$mumax_2)
+
+# change column names
+colnames(data) <- c("Isolate","temp","mumax_ln_h","mumax_log10_day","sqrt_mumax_log10_day") 
+
+# save file 
+write.csv(data,"Secondary model/OutputFiles/mumax_new.csv")
+```
+
+# fit secondary model 
+```{r}
+library(dplyr)
+
+# subset data by isolates
+unique_isolates <- unique(data[c("Isolate")])
+
+# initialize data frames to store the fits  
+b <- data.frame(Isolate = character(), Slope = numeric(), stringsAsFactors = FALSE)
+Tmin <- data.frame(Isolate = character(), Tmin = numeric(), stringsAsFactors = FALSE)
+
+# loop over each isolate and rep combination to fit secondary model
+for (i in 1:nrow(unique_isolates)) {
+  isolate <- as.character(unique_isolates$Isolate[i])
+  isolate_data <- subset(data, Isolate == isolate) # subset the data for the current isolate
+  sqrt_mumax <- isolate_data$sqrt_mumax_log10_day
+  fit <- lm(sqrt_mumax ~ isolate_data$temp)
+  slope <- coef(fit)[2]
+  tmin <- -coef(fit)[1]/coef(fit)[2]
+  b <- bind_rows(b, data.frame(Isolate = isolate, Slope = slope))
+  Tmin <- bind_rows(Tmin, data.frame(Isolate = isolate, Tmin = tmin))
+}
+
+# join the b and Tmin data frames to the unique_isolates data frame
+results <- unique_isolates %>% 
+  mutate(Isolate = as.character(Isolate)) %>%
+  left_join(b) %>% 
+  left_join(Tmin)
+
+# save results to a CSV file
+write.csv(results, file = "Secondary model/OutputFiles/sec_model_new.csv", row.names = FALSE)
+```
+

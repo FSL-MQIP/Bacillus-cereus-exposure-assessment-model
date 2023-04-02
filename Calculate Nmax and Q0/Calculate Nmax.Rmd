@@ -1,0 +1,32 @@
+---
+title: "Calculate Nmax"
+author: "Jun Su"
+date: "2023-04-02"
+output: pdf_document
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
+```
+
+```{r}
+# Import data set
+data_22dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_22dC_new.csv")
+data_22dC$temp <- rep(22,34)
+data_10dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_10dC_new.csv")
+data_10dC$temp <- rep(10,30)
+
+# Generate Nmax table
+Nmax_table <- rbind(data_22dC,data_10dC)
+Nmax_table <- Nmax_table[,c("isolate","rep","LOG10Nmax","temp")]
+colnames(Nmax_table) <- c("isolate", "rep", "LOG10Nmax","temp")
+
+# calculate average Nmax by isolate
+avg_Nmax_by_isolate <- aggregate(LOG10Nmax ~ isolate, data = Nmax_table, mean)
+colnames(avg_Nmax_by_isolate) <- c("isolate", "average_LOG10Nmax")
+avg_Nmax_by_isolate$average_Nmax = 10^avg_Nmax_by_isolate$average_LOG10Nmax
+
+# export the data to a CSV file
+write.csv(avg_Nmax_by_isolate, "Calculate Nmax and Q0/OutputFiles/Nmax_new.csv", row.names = FALSE)
+```
+

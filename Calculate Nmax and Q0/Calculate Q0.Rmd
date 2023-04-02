@@ -1,0 +1,48 @@
+---
+title: "Calculate Q0"
+author: "Jun Su"
+date: "2023-04-02"
+output: pdf_document
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
+```
+
+```{r}
+# Import data set
+data_22dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_22dC_new.csv")
+data_22dC$temp <- rep(22,34)
+data_10dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_10dC_new.csv")
+data_10dC$temp <- rep(10,30)
+
+# Generate h0 table
+h0_table <- rbind(data_22dC,data_10dC)
+h0_table <- h0_table[,c("isolate","rep","temp","mumax",'lag')]
+h0_table$mumax2 <- h0_table$mumax*24
+h0_table$lag2 <- h0_table$lag/24
+colnames(h0_table) <- c("isolate","rep","temp","mumax_ln_h","lag_h","mumax_ln_day","lag_day")  
+h0_table$h0 <- h0_table$mumax_ln_day*h0_table$lag_day
+h0_table <- h0_table[order(h0_table$isolate), ]
+h0_table <- h0_table[h0_table$lag_h != 0,]
+
+# Save file
+write.csv(h0_table,"Calculate Nmax and Q0/OutputFiles/h0 table.csv")
+
+# Calculate avg_h0 and sd_h0 for each isolate
+library(dplyr)
+
+Q0_h0_summary <- h0_table %>%
+  group_by(isolate) %>%
+  summarize(avg_h0 = mean(h0, na.rm = TRUE), 
+            sd_h0 = sd(h0, na.rm = TRUE))
+
+# Calculate Q0 for each isolate
+source("Calculate Nmax and Q0/UtilityFunctions_Q0.R")
+Q0_h0_summary$Q0 = sapply(Q0_h0_summary$avg_h0, Calculate_Q0)
+
+# Export the results to a CSV file
+write.csv(Q0_h0_summary, file = "Calculate Nmax and Q0/OutputFiles/Q0_h0_summary.csv", row.names = FALSE)
+
+```
+

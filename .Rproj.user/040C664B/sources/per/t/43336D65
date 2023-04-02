@@ -1,0 +1,26 @@
+{
+    "id": "43336D65",
+    "path": "~/GitHub/Bacillus-cereus-exposure-assessment-model/Primary Growth Model Fitting.R",
+    "project_path": "Primary Growth Model Fitting.R",
+    "type": "r_source",
+    "hash": "3912092199",
+    "contents": "",
+    "dirty": false,
+    "created": 1667219743439.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "4,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1667219773,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1667219773144,
+    "read_only": false,
+    "read_only_alternatives": []
+}
