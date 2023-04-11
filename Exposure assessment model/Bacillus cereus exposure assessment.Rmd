@@ -113,51 +113,22 @@ simulation_input <- data.frame(isolate = data_Q0$isolate[3:17], Q0 = data_Q0$Q0[
 simulation_input$Topt = sapply(simulation_input$Clade, xopt_func)
 simulation_input$mu_opt = (simulation_input$b*(simulation_input$Topt-simulation_input$Tmin))^2 
 
-# Initialize a list to store the final concentrations
-final_conc_d35 <- lapply(1:nrow(simulation_input), function(i) {
-  
-  # initialize a list to store the final concentrations for this isolate
-  final_conc_isolate <- vector(mode = "list", length = n_sim)
-  
-  # subset data by isolate
-  Iso <- simulation_input[i,]
-  
-  # Prepare model input
-  xmin = Iso$Tmin
-  b = Iso$b 
-  mu_opt = Iso$mu_opt # assume (Topt,sqrt(mu_opt)) is on the linear region 
-  Q0 = Iso$Q0
-  
-  # Run the models 
-  my_primary <- list(mu_opt = mu_opt,   # in log10 scale
-                     Nmax = Iso$Nmax,     
-                     N0 = 1e2,          
-                     Q0 = Q0)
-  
-  sec_temperature <- list(model = "reducedRatkowsky",  
-                          xmin = xmin, 
-                          b = b,
-                          clade = Iso$Clade)    
-  
-  my_secondary <- list(temperature = sec_temperature)
-  
-  # loop over each simulation
-  final_conc_isolate <- lapply(1:n_sim, function(j) {
-    
-    growth = predict_dynamic_growth(times = env_cond_time[j,],
-                                    env_conditions = tibble(time = env_cond_time[j,],
-                                                            temperature = env_cond_temp[j,]),
-                                    my_primary,
-                                    my_secondary)
-    sim = growth$simulation
-    
-    # return the final concentration for this simulation
+# Run simulation
+final_conc_d35 <- simulation_input %>%
+  rowwise() %>%
+  mutate(final_conc_isolate = list(lapply(1:n_sim, function(j) {
+    my_primary <- list(mu_opt = mu_opt, Nmax = Nmax, N0 = 1e2, Q0 = Q0)
+    sec_temperature <- list(model = "reducedRatkowsky", xmin = Tmin, b = b, clade = Clade)
+    my_secondary <- list(temperature = sec_temperature)
+    growth <- predict_dynamic_growth(times = env_cond_time[j,],
+                                     env_conditions = tibble(time = env_cond_time[j,],
+                                                             temperature = env_cond_temp[j,]),
+                                     my_primary,
+                                     my_secondary)
+    sim <- growth$simulation
     return(tail(sim$logN, 1))
-  })
-  
-  # return the final concentrations for all simulations for this isolate
-  return(final_conc_isolate)
-})
+  }))) %>%
+  pull(final_conc_isolate)
 
 # Convert the list of 15 elements into a matrix
 matrix <- t(sapply(final_conc_d35, function(x) sapply(x, tail, n=1)))
@@ -169,5 +140,6 @@ simulation_input$percent_over_5_d35 = percent_over_5_d35
 # Output 
 Result = simulation_input
 write.csv(Result,"Exposure assessment model/OutputFiles/Result.csv")
+
 ```
 
