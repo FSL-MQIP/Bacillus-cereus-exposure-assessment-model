@@ -15,20 +15,27 @@ knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus
 data_22dC <- read.csv("Secondary model/InputFiles/gp_22dC_new.csv")
 data_22dC$temp <- rep(22,34)
 data_22dC_mumax <- data_22dC[,c("isolate","temp","mumax")]
+data_16dC <-read.csv("Secondary model/InputFiles/gp_16dC_new.csv")
+data_16dC$temp <- rep(16,4)
+data_16dC_mumax <- data_16dC[,c("isolate","temp","mumax")]
 data_10dC <- read.csv("Secondary model/InputFiles/gp_10dC_new.csv")
 data_10dC$temp <- rep(10,30)
 data_10dC_mumax <- data_10dC[,c("isolate","temp","mumax")]
 
 # incorporate growth/no growth data 
-isolate <- data_22dC$isolate[!(data_22dC$isolate == 125 | data_22dC$isolate == 135)]
-temp <- rep(8,30)
-temp[14]<-6
-temp[29]<-6
-mumax <- rep(0,30)
+isolate <- data_22dC$isolate
+temp <- rep(8,34)
+temp[1]<-10
+temp[2]<-10
+temp[18]<-10
+temp[19]<-10
+temp[16]<-6
+temp[33]<-6
+mumax <- rep(0,34)
 df <- data.frame(isolate = isolate, temp = temp, mumax = mumax)
 
 # combine data
-data <- rbind(data_22dC_mumax,data_10dC_mumax,df)
+data <- rbind(data_22dC_mumax,data_16dC_mumax,data_10dC_mumax,df)
 
 # covert unit and calculate square root 
 data$mumax_2 = data$mumax/log(10)*24
@@ -46,7 +53,7 @@ write.csv(data,"Secondary model/OutputFiles/mumax_new.csv")
 library(dplyr)
 
 # subset data by isolates
-unique_isolates <- unique(data[c("Isolate")])
+unique_isolates <- unique(data["Isolate"])
 
 # initialize data frames to store the fits  
 b <- data.frame(Isolate = character(), Slope = numeric(), stringsAsFactors = FALSE)
@@ -69,6 +76,7 @@ results <- unique_isolates %>%
   mutate(Isolate = as.character(Isolate)) %>%
   left_join(b) %>% 
   left_join(Tmin)
+results <- results[results$Isolate != 135, ]
 
 # save results to a CSV file
 write.csv(results, file = "Secondary model/OutputFiles/sec_model_new.csv", row.names = FALSE)

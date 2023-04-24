@@ -124,6 +124,8 @@ secondary_model_data <- function (model_name = NULL) {
 
 # Define function to select Topt by groups (from literature, create citation)
 xopt_func <- function(clade){
+  if(clade == "I")
+  {return(28)}
   if(clade == "II")
   {return(36.31)}
   else if(clade == "III")

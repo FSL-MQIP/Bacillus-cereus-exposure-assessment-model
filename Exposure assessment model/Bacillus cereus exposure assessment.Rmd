@@ -105,11 +105,12 @@ env_cond_temp <- matrix(c(data$T_F,
 data_Q0 = read.csv("Exposure assessment model/InputFiles/Q0_h0_summary.csv")
 data_Nmax = read.csv("Exposure assessment model/InputFiles/Nmax_new.csv")
 data_sec_model = read.csv("Exposure assessment model/InputFiles/sec_model_new.csv")
-Clade = c("II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
+Clade = c("I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
 
 # Generate simulation input
-simulation_input <- data.frame(isolate = data_Q0$isolate[3:17], Q0 = data_Q0$Q0[3:17], Nmax = data_Nmax$average_Nmax[3:17], 
-                               b = data_sec_model$b[3:17], Tmin = data_sec_model$Tmin[3:17],Clade)
+simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, 
+                               Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
+                               Tmin = data_sec_model$Tmin,Clade)
 simulation_input$Topt = sapply(simulation_input$Clade, xopt_func)
 simulation_input$mu_opt = (simulation_input$b*(simulation_input$Topt-simulation_input$Tmin))^2 
 

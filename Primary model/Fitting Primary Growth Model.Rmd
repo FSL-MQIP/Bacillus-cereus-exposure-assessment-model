@@ -150,3 +150,63 @@ fits_10dC[5,] <- subset(outliers,ï..isolate == "413" & rep == "rep1")  # Iso413
 write.csv(fits_10dC,"Primary model/OutputFiles/gp_10dC_new.csv")
 ```
 
+# fit 16 dC growth data 
+# import growth dataset 
+```{r}
+# 16dC growth data 
+data3 <- read.csv("Primary model/InputFiles/data_16_new.csv")
+colnames(data3) = c("t","Rep","LOG10N","Isolate")
+
+# create a list of data frames, one for each isolate and rep
+data_list <- split(data3, list(data3$Isolate, data3$Rep))
+
+# starting values
+starting_values_16dC <-read.csv("Primary model/InputFiles/Starting values_16dC.csv")
+```
+
+# subset data and fit Baranyi model
+```{r}
+# initialize a list to store the fits
+fit_list <- list()
+
+# loop over each sample and its repetitions
+for (i in 1:length(data_list)) {
+  # subset the data for the current sample and rep
+  sub_data <- data_list[[i]]
+  
+  # extract the sample and rep information
+  isolate <- unique(sub_data$Isolate)
+  rep <- unique(sub_data$Rep)
+  
+  # set the starting values for the current isolate and rep
+  start_values <- c(LOG10N0 = starting_values_16dC$LOG10N0[i],
+                    lag = starting_values_16dC$lag[i],
+                    mumax = starting_values_16dC$mumax[i],
+                    LOG10Nmax = starting_values_16dC$LOG10Nmax[i])
+  
+  # fit the Baranyi model to the subset of data
+  fit <- nlsLM(LOG10N ~ baranyi_log10N(t,lag,mumax,LOG10N0,LOG10Nmax), data=sub_data,
+               start = start_values, 
+               lower = c(0,0,0,0))
+  
+  # extract the model coefficients
+  coef_values <- coefficients(fit)
+  
+  # add the fit and its summary to the fit list
+  fit_list[[i]] <- data.frame(isolate=isolate, rep=rep, 
+                              LOG10N0 = coef_values["LOG10N0"],
+                              lag = coef_values["lag"],
+                              mumax = coef_values["mumax"],
+                              LOG10Nmax = coef_values["LOG10Nmax"])
+}
+```
+
+# combine data and generate output 
+```{r}
+# combine the fits into a single data frame
+fits_16dC <- do.call(rbind, fit_list)
+
+# generate output
+write.csv(fits_16dC,"Primary model/OutputFiles/gp_16dC_new.csv")
+```
+

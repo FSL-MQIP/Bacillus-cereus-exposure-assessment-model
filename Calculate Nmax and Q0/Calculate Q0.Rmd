@@ -13,11 +13,14 @@ knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus
 # Import data set
 data_22dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_22dC_new.csv")
 data_22dC$temp <- rep(22,34)
+data_16dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_16dC_new.csv")
+data_16dC$temp <- rep(16,4)
 data_10dC <- read.csv("Calculate Nmax and Q0/InputFiles/gp_10dC_new.csv")
 data_10dC$temp <- rep(10,30)
 
 # Generate h0 table
-h0_table <- rbind(data_22dC,data_10dC)
+h0_table <- rbind(data_22dC,data_16dC,data_10dC)
+h0_table <- h0_table[h0_table$isolate != 135, ]
 h0_table <- h0_table[,c("isolate","rep","temp","mumax",'lag')]
 h0_table$mumax2 <- h0_table$mumax*24
 h0_table$lag2 <- h0_table$lag/24
