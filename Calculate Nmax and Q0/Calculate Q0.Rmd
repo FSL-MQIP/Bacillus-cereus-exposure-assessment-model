@@ -32,17 +32,21 @@ h0_table <- h0_table[h0_table$lag_h != 0,]
 # Save file
 write.csv(h0_table,"Calculate Nmax and Q0/OutputFiles/h0 table.csv")
 
-# Calculate avg_h0 and sd_h0 for each isolate
+# Calculate avg_h0, min_h0, max_h0, and sd_h0 for each isolate
 library(dplyr)
 
 Q0_h0_summary <- h0_table %>%
   group_by(isolate) %>%
   summarize(avg_h0 = mean(h0, na.rm = TRUE), 
+            min_h0 = min(h0),
+            max_h0 = max(h0),
             sd_h0 = sd(h0, na.rm = TRUE))
 
 # Calculate Q0 for each isolate
 source("Calculate Nmax and Q0/UtilityFunctions_Q0.R")
 Q0_h0_summary$Q0 = sapply(Q0_h0_summary$avg_h0, Calculate_Q0)
+Q0_h0_summary$Q0_max = sapply(Q0_h0_summary$min_h0, Calculate_Q0)
+Q0_h0_summary$Q0_min = sapply(Q0_h0_summary$max_h0, Calculate_Q0)
 
 # Export the results to a CSV file
 write.csv(Q0_h0_summary, file = "Calculate Nmax and Q0/OutputFiles/Q0_h0_summary.csv", row.names = FALSE)

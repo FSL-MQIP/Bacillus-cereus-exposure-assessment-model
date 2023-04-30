@@ -106,11 +106,24 @@ data_Q0 = read.csv("Exposure assessment model/InputFiles/Q0_h0_summary.csv")
 data_Nmax = read.csv("Exposure assessment model/InputFiles/Nmax_new.csv")
 data_sec_model = read.csv("Exposure assessment model/InputFiles/sec_model_new.csv")
 Clade = c("I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
+# Generate N0 from a Poisson distribution 
+set.seed(42)
+N0 = rpois(n = n_sim, lambda = 1e2)
 
 # Generate simulation input
+# Input Q0
 simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, 
                                Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
                                Tmin = data_sec_model$Tmin,Clade)
+# Input Q0_max
+# simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0_max, 
+                               # Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
+                               # Tmin = data_sec_model$Tmin,Clade)
+# Input Q0_min 
+# simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0_min, 
+                               # Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
+                               # Tmin = data_sec_model$Tmin,Clade)
+
 simulation_input$Topt = sapply(simulation_input$Clade, xopt_func)
 simulation_input$mu_opt = (simulation_input$b*(simulation_input$Topt-simulation_input$Tmin))^2 
 
@@ -118,7 +131,7 @@ simulation_input$mu_opt = (simulation_input$b*(simulation_input$Topt-simulation_
 final_conc_d35 <- simulation_input %>%
   rowwise() %>%
   mutate(final_conc_isolate = list(lapply(1:n_sim, function(j) {
-    my_primary <- list(mu_opt = mu_opt, Nmax = Nmax, N0 = 1e2, Q0 = Q0)
+    my_primary <- list(mu_opt = mu_opt, Nmax = Nmax, N0 = N0[j], Q0 = Q0)
     sec_temperature <- list(model = "reducedRatkowsky", xmin = Tmin, b = b, clade = Clade)
     my_secondary <- list(temperature = sec_temperature)
     growth <- predict_dynamic_growth(times = env_cond_time[j,],
@@ -131,7 +144,7 @@ final_conc_d35 <- simulation_input %>%
   }))) %>%
   pull(final_conc_isolate)
 
-# Convert the list of 15 elements into a matrix
+# Convert the list of 16 elements into a matrix
 matrix <- t(sapply(final_conc_d35, function(x) sapply(x, tail, n=1)))
 
 # Calculate the percentage over 5 for each row (element) in the matrix
@@ -140,7 +153,10 @@ simulation_input$percent_over_5_d35 = percent_over_5_d35
 
 # Output 
 Result = simulation_input
-write.csv(Result,"Exposure assessment model/OutputFiles/Result.csv")
-
+# Result_Q0_max = simulation_input
+# Result_Q0_min = simulation_input
+# write.csv(Result,"Exposure assessment model/OutputFiles/Result.csv")
+# write.csv(Result_Q0_max,"Exposure assessment model/OutputFiles/Result_Q0_max.csv")
+# write.csv(Result_Q0_min,"Exposure assessment model/OutputFiles/Result_Q0_min.csv")
 ```
 
