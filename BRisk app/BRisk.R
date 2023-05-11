@@ -170,13 +170,16 @@ server <- function(input, output) {
     ModelData$realCFU = 10^ModelData$conc
     ModelData$CFU_per_serve = ModelData$realCFU*ModelData$serving.size
     log_CFU_per_serving <- log10(ModelData$CFU_per_serve)
+    
+    # Return the required data frame
+    return(data.frame(ModelData, log_CFU_per_serving))
     })
   
   # Generate a histogram for the distribution of cfu per serving in 1000 units HTST milk 
   output$hist <- renderPlot({
     req(data())
-    df <- data.frame(CFU = log_CFU_per_serving)
-    ggplot(df, aes(x = CFU)) +
+    df <- data()
+    ggplot(df, aes(x = log_CFU_per_serving)) +
       geom_histogram(binwidth = 0.1, color = "black", fill = "lightblue") +
       labs(title = "Log CFU per Serving", x = "CFU per Serving (log scale)", y = "Number of Servings")
   })
