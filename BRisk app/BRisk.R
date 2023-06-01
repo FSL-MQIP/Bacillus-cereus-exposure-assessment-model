@@ -10,11 +10,37 @@ library(purrr)            # to load 'map'
 library(deSolve)          # to load 'ode'
 library(rlang)
 library(ggplot2)
+library(gridExtra)
 
 # Load utility functions
 source("UtilityFunctions_dynamic_growth.R")
 
+# Define function to screen for emetic and anthrax risks 
+screen_risks <- function(emetic_genes, anthrax_genes) {
+  if (is.na(emetic_genes) || is.na(anthrax_genes)) {
+    emetic_risk <- "Missing Data"
+    anthrax_risk <- "Missing Data"
+  } else {
+    if (emetic_genes %in% c("4/4()", "3/4()")) {
+      emetic_risk <- "Emetic Risk"
+    } else if (emetic_genes %in% c("2/4()", "1/4()")) {
+      emetic_risk <- "Insufficient Information to Exclude Emetic Risk"
+    } else {
+      emetic_risk <- "No Evidence of Emetic Risk"
+    }
+    
+    if (anthrax_genes %in% c("3/3()", "2/3()", "1/3()")) {
+      anthrax_risk <- "Anthrax Risk"
+    } else {
+      anthrax_risk <- "No Evidence of Anthrax Risk"
+    }
+  }
+  
+  return(list(emetic_risk = emetic_risk, anthrax_risk = anthrax_risk))
+}
+
 # Generate database 
+# BTyper data
 BTyper3_input = read.csv("Btyper3_Results.csv")
 colnames(BTyper3_input)[1] <- "Isolate.Name"
 gp_input = read.csv("simulation_input.csv")
@@ -23,19 +49,31 @@ database <- database %>%
   separate(Closest_Type_Strain.ANI., into = c("species","ANI"), sep = "\\(") %>%
   mutate(ANI = gsub("\\)", "", ANI))
 
+# Cytotoxicity data 
+cytotoxicity_input = read.csv("FINAL B_cereus_mastersheet.csv")
+colnames(cytotoxicity_input)[1] <- "Isolate.Name"
+cytotoxicity_input <- cytotoxicity_input %>%
+  separate(Btyper3.Closest.Type.Strain, into = c("species","ANI"), sep = "\\(") %>%
+  separate(Adjusted.panC.Group..predicted.species., into = c("panC_Group","predicted_species"), sep = "\\(") %>%
+  mutate(ANI = gsub("\\)", "", ANI),
+         panC_Group = gsub("\\)", "", panC_Group),
+         predicted_species = gsub("\\)", "", predicted_species))
+
 # Define ui
 ui <- fluidPage(
   titlePanel("BRisk"),
   
   sidebarLayout(
     sidebarPanel(
-      numericInput("n0", "Initial count:", value = 100),  # Numeric input for "initial count"
+      numericInput("n0", "Initial count (CFU/mL):", value = 100),  # Numeric input for "initial count"
       numericInput("d", "Storage day:", value = 35),  # Numeric input for "storage day"
-      fileInput("file", "Input BTyper3 result for a detected B cereus isolate")  # BTyper3 input for a B cereus isolate
-    ),
-    
+      fileInput("file", "Input BTyper3 result for a detected B cereus isolate"),  # BTyper3 input for a B cereus isolate
+      submitButton("Submit", icon("refresh"))),
+      
     mainPanel(
-      plotOutput("hist")
+      plotOutput("hist1"),
+      verbatimTextOutput("riskOutput"),
+      plotOutput("hist2")
     )
   )
 )
@@ -48,17 +86,41 @@ server <- function(input, output) {
     req(input$file)
     df <- read.csv(input$file$datapath)
     
-    # Filter the database for rows with the same species as the BTyper3 input
+    df <- df %>% 
+      separate(Closest_Type_Strain.ANI., into = c("species","ANI"), sep = "\\(") %>%
+      separate(Adjusted_panC_Group.predicted_species., into = c("panC_Group","predicted_species"), sep = "\\(") %>%
+      mutate(ANI = gsub("\\)", "", ANI),
+             panC_Group = gsub("\\)", "", panC_Group),
+             predicted_species = gsub("\\)", "", predicted_species))
+    
+    colnames(df)[8] <- "anthrax_genes"
+    colnames(df)[9] <- "emetic_genes"
+    
+    # Input for risk text 
+    emetic_genes <- df$emetic_genes
+    anthrax_genes <- df$anthrax_genes
+    
+    # Filter the database input for rows with the same species as the BTyper3 input
     df$species <- trimws(df$species)
     matching_species_df <- subset(database, species == df$species)
     
-    # Simulate 1000 units of HTST milk along the supply chain 
-    ## Set up dataframe for modeling 1000 units of HTST milk 
-    n_sim = 1000
-    ModelData = data.frame(unit_id = rep(seq(1,n_sim)))
-    
+    # Simulate HTST milk products along the supply chain 
     ## Set seed
     set.seed(1)
+    
+    ## Randomly assign isolate names to 1000*length(isolates) units of HTST milk products
+    ## All isolates from the same species are equally represented
+    isolates <- matching_species_df$Isolate.Name
+    sampled_isolates <- character()
+    for (isolate in isolates) {
+      sampled_isolates <- c(sampled_isolates, rep(isolate, 1000))
+    }
+    sampled_isolates <- sample(sampled_isolates)
+    
+    ## Set up dataframe for modeling 1000*length(isolates) units of HTST milk products
+    n_sim = 1000*length(isolates)
+    ModelData = data.frame(unit_id = rep(seq(1,n_sim)))
+    ModelData$isolate <- sampled_isolates
     
     # Stage 1: facility storage 
     ## (a)  Sample the temperature distribution
@@ -98,8 +160,8 @@ server <- function(input, output) {
     ## (b) Define t_H as 35 days for all units
     ModelData$t_H <- rep(input$d, each = n_sim)
     
-    ## Model temperature profiles of 1000 units HTST milk 
-    env_cond_time <- matrix(c(rep(0,1000),
+    ## Model temperature profiles of 1000*length(isolates) units HTST milk 
+    env_cond_time <- matrix(c(rep(0,1000*length(isolates)),
                               ModelData$t_F, 
                               ModelData$t_F+0.001,
                               ModelData$t_F + ModelData$t_T,
@@ -121,23 +183,12 @@ server <- function(input, output) {
                               ModelData$T_H,
                               ModelData$T_H), ncol = 10)
     
-    # Assign serving size to 1000 units of HTST milk 
-    serving.size<-sample(x = c(rep(x = 244,50),rep(245,25),rep(488,20),rep(732,5)),size = 1000,replace = TRUE)
-    ModelData$serving.size = serving.size
-    
-    ## Randomly assign isolate names to 1000 units of HTST milk 
-    ## All isolates from the same species are equally represented
-    isolates <- matching_species_df$Isolate.Name
-    samples_per_isolate <- n_sim / length(isolates)
-    sampled_isolates <- character()
-    for (isolate in isolates) {
-      sampled_isolates <- c(sampled_isolates, rep(isolate, samples_per_isolate))
-    }
-    sampled_isolates <- sample(sampled_isolates)
-    ModelData$isolate <- sampled_isolates
+    # Assign serving size (ml) to 1000*length(isolates) units of HTST milk 
+    serving.size<-sample(x = c(rep(x = 244,50),rep(245,25),rep(488,20),rep(732,5)),size = 1000*length(isolates),replace = TRUE)
+    ModelData$serving.size = serving.size*0.97
     
     ## Generate simulation input 
-    ## Assign growth parameters to 1000 units of HTST milk 
+    ## Assign growth parameters to 1000*length(isolates) units of HTST milk 
     ModelData$index = match(ModelData$isolate, matching_species_df$Isolate.Name)
     ModelData$Q0 = matching_species_df$Q0[ModelData$index]
     ModelData$Nmax = matching_species_df$Nmax[ModelData$index]
@@ -172,18 +223,82 @@ server <- function(input, output) {
     log_CFU_per_serving <- log10(ModelData$CFU_per_serve)
     
     # Return the required data frame
-    return(data.frame(ModelData, log_CFU_per_serving))
+    return(list(df1 =data.frame(ModelData, log_CFU_per_serving),
+                df2 = df,
+                df3 = cytotoxicity_input))
     })
   
-  # Generate a histogram for the distribution of cfu per serving in 1000 units HTST milk 
-  output$hist <- renderPlot({
+  # Generate a density plot for the distribution of cfu per serving in all HTST milk units
+  output$hist1 <- renderPlot({
     req(data())
-    df <- data()
-    ggplot(df, aes(x = log_CFU_per_serving)) +
-      geom_histogram(binwidth = 0.1, color = "black", fill = "lightblue") +
-      labs(title = "Log CFU per Serving", x = "CFU per Serving (log scale)", y = "Number of Servings")
+    df1 <- data()$df1
+    ggplot(data = df1, aes(x = log_CFU_per_serving)) +
+      geom_density(aes(y = ..density..), fill = "lightblue", color = "black") +
+      xlab("CFU per Serving (log scale)") +
+      ylab("Density") +
+      ggtitle("Distribution of B cereus count (cfu/serving) in HTST milk products") +
+      theme_minimal()
   })
-}
+  
+  # Generate risk text
+  output$riskOutput <- renderText({
+    req(data())
+    df2 <- data()$df2
+    emetic_genes <- df2$emetic_genes
+    anthrax_genes <- df2$anthrax_genes
+    risk_result <- screen_risks(emetic_genes, anthrax_genes)
+    risk_text <- paste("This is an isolate from phylogenetic", df2$panC_Group, 
+                       ",closest type strain:", df2$species, 
+                       ",with", risk_result$emetic_risk, "and", risk_result$anthrax_risk,
+                       ".Please refer to the Density Plot of Normalized Cytotoxicity below for Diarrheal Risk Assessment.")
+    risk_text
+  })
+  
+  # Generate a density plot for the distribution of normalized cytotoxicity for diarrheal risk 
+  output$hist2 <- renderPlot({
+    req(data())
+    df2 <- data()$df2
+    df3 <- data()$df3
+    colnames(df3)[colnames(df3) == "Average.Cell.Viability"] <- "Normalized_Cytotoxicity"
+    matching_species_df_ct1 <- subset(df3, panC_Group == df2$panC_Group)
+    matching_species_df_ct <- subset(df3, species == df2$species)
+    
+    plot1 <- ggplot(data = df3, aes(x = Normalized_Cytotoxicity)) +
+      geom_density(fill = "gray", alpha = 0.5) +
+      scale_fill_manual(values = c("gray" = "gray")) +
+      geom_vline(xintercept = 0.3, linetype = "dashed", color = "red") +
+      theme_minimal() +
+      labs(title = "All Isolates") +
+      annotate("text", x = 0.3, y = Inf, label = "< 0.3 is cytotoxic", hjust = -0.2, vjust = 1, color = "red") +
+      ylab("Density") + 
+      xlim(-0.5,1.5) + 
+      ylim(0,2)
+    
+    plot2 <- ggplot(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity)) +
+      geom_density(fill = "yellow", alpha = 0.5) +
+      scale_fill_manual(values = c("yellow" = "yellow")) +
+      geom_vline(xintercept = 0.3, linetype = "dashed", color = "red") +
+      theme_minimal() +
+      labs(title = "Phylogenetic Group") + 
+      annotate("text", x = 0.3, y = Inf, label = "< 0.3 is cytotoxic", hjust = -0.2, vjust = 1, color = "red") +
+      ylab("Density") +
+      xlim(-0.5,1.5) + 
+      ylim(0,2)
+    
+    plot3 <- ggplot(data = matching_species_df_ct, aes(x = Normalized_Cytotoxicity)) +
+      geom_density(fill = "blue", alpha = 0.5) +
+      scale_fill_manual(values = c("blue" = "blue")) +
+      geom_vline(xintercept = 0.3, linetype = "dashed", color = "red") +
+      theme_minimal() +
+      labs(title = "Closest Type Strain") + 
+      annotate("text", x = 0.3, y = Inf, label = "< 0.3 is cytotoxic", hjust = -0.2, vjust = 1, color = "red") +
+      ylab("Density") + 
+      xlim(-0.5,1.5) + 
+      ylim(0,2)
+    
+    grid.arrange(plot1, plot2, plot3, ncol = 3)
+  })
+}    
 
 # Run the application 
 shinyApp(ui = ui, server = server)
