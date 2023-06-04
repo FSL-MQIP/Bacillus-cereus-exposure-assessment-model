@@ -10,7 +10,6 @@ library(purrr)            # to load 'map'
 library(deSolve)          # to load 'ode'
 library(rlang)
 library(ggplot2)
-library(gridExtra)
 
 # Load utility functions
 source("UtilityFunctions_dynamic_growth.R")
@@ -22,11 +21,11 @@ screen_risks <- function(emetic_genes, anthrax_genes) {
     anthrax_risk <- "Missing Data"
   } else {
     if (emetic_genes %in% c("4/4()", "3/4()")) {
-      emetic_risk <- "Emetic Risk"
+      emetic_risk <- "Emetic Disease Risk"
     } else if (emetic_genes %in% c("2/4()", "1/4()")) {
-      emetic_risk <- "Insufficient Information to Exclude Emetic Risk"
+      emetic_risk <- "Insufficient Information to Exclude Emetic Disease Risk"
     } else {
-      emetic_risk <- "No Evidence of Emetic Risk"
+      emetic_risk <- "No Evidence of Emetic Disease Risk"
     }
     
     if (anthrax_genes %in% c("3/3()", "2/3()", "1/3()")) {
@@ -50,14 +49,8 @@ database <- database %>%
   mutate(ANI = gsub("\\)", "", ANI))
 
 # Cytotoxicity data 
-cytotoxicity_input = read.csv("FINAL B_cereus_mastersheet.csv")
+cytotoxicity_input = read.csv("Cytotoxicity_data.csv")
 colnames(cytotoxicity_input)[1] <- "Isolate.Name"
-cytotoxicity_input <- cytotoxicity_input %>%
-  separate(Btyper3.Closest.Type.Strain, into = c("species","ANI"), sep = "\\(") %>%
-  separate(Adjusted.panC.Group..predicted.species., into = c("panC_Group","predicted_species"), sep = "\\(") %>%
-  mutate(ANI = gsub("\\)", "", ANI),
-         panC_Group = gsub("\\)", "", panC_Group),
-         predicted_species = gsub("\\)", "", predicted_species))
 
 # Define ui
 ui <- fluidPage(
@@ -67,6 +60,9 @@ ui <- fluidPage(
     sidebarPanel(
       numericInput("n0", "Initial count (CFU/mL):", value = 100),  # Numeric input for "initial count"
       numericInput("d", "Storage day:", value = 35),  # Numeric input for "storage day"
+      selectInput("foodmatrix",
+                  label="Select a food matrix",
+                  choices=c("Milk, pasteurized fluid")),
       fileInput("file", "Input BTyper3 result for a detected B cereus isolate"),  # BTyper3 input for a B cereus isolate
       submitButton("Submit", icon("refresh"))),
       
@@ -228,16 +224,25 @@ server <- function(input, output) {
                 df3 = cytotoxicity_input))
     })
   
-  # Generate a density plot for the distribution of cfu per serving in all HTST milk units
+  # Generate a histogram for the distribution of cfu per serving in all HTST milk units
   output$hist1 <- renderPlot({
     req(data())
     df1 <- data()$df1
-    ggplot(data = df1, aes(x = log_CFU_per_serving)) +
-      geom_density(aes(y = ..density..), fill = "lightblue", color = "black") +
+    df1$color<-ifelse(test = df1$log_CFU_per_serving>=5,yes = ">= 5 log",no = 
+                           ifelse(df1$log_CFU_per_serving>=3,yes = ">= 3 log",no = "< 3 log"))
+    min_value <- min(df1$log_CFU_per_serving)
+    max_value <- max(df1$log_CFU_per_serving)
+    breaks <- seq(floor(min_value), ceiling(max_value) + 0.1, by = 0.1)
+    finalhist<-ggplot(data = df1,aes(x = log_CFU_per_serving))
+    finalhist<-finalhist+
+      geom_histogram(data = df1,aes(fill=color),binwidth = 0.1, breaks = breaks)+
+      scale_fill_manual("B cereus count per serving", 
+                        values = c(">= 5 log"="red3",">= 3 log"="darkorange1","< 3 log"="springgreen3"))+
       xlab("CFU per Serving (log scale)") +
-      ylab("Density") +
+      ylab("Number of Servings") +
       ggtitle("Distribution of B cereus count (cfu/serving) in HTST milk products") +
       theme_minimal()
+    return(finalhist)
   })
   
   # Generate risk text
@@ -248,55 +253,28 @@ server <- function(input, output) {
     anthrax_genes <- df2$anthrax_genes
     risk_result <- screen_risks(emetic_genes, anthrax_genes)
     risk_text <- paste("This is an isolate from phylogenetic", df2$panC_Group, 
-                       ",closest type strain:", df2$species, 
                        ",with", risk_result$emetic_risk, "and", risk_result$anthrax_risk,
-                       ".Please refer to the Density Plot of Normalized Cytotoxicity below for Diarrheal Risk Assessment.")
+                       ".Please refer to the Histogram of Normalized Cytotoxicity for Phylogenetic", df2$panC_Group, "below for Diarrheal Risk Assessment.")
     risk_text
   })
   
-  # Generate a density plot for the distribution of normalized cytotoxicity for diarrheal risk 
+  # Generate a histogram for the distribution of normalized cytotoxicity for diarrheal risk 
   output$hist2 <- renderPlot({
     req(data())
     df2 <- data()$df2
     df3 <- data()$df3
-    colnames(df3)[colnames(df3) == "Average.Cell.Viability"] <- "Normalized_Cytotoxicity"
+    colnames(df3)[colnames(df3) == "Average_Cell_Viability_F"] <- "Normalized_Cytotoxicity"
+    df3$panC_Group <- trimws(df3$panC_Group)
     matching_species_df_ct1 <- subset(df3, panC_Group == df2$panC_Group)
-    matching_species_df_ct <- subset(df3, species == df2$species)
-    
-    plot1 <- ggplot(data = df3, aes(x = Normalized_Cytotoxicity)) +
-      geom_density(fill = "gray", alpha = 0.5) +
-      scale_fill_manual(values = c("gray" = "gray")) +
-      geom_vline(xintercept = 0.3, linetype = "dashed", color = "red") +
-      theme_minimal() +
-      labs(title = "All Isolates") +
-      annotate("text", x = 0.3, y = Inf, label = "< 0.3 is cytotoxic", hjust = -0.2, vjust = 1, color = "red") +
-      ylab("Density") + 
-      xlim(-0.5,1.5) + 
-      ylim(0,2)
-    
-    plot2 <- ggplot(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity)) +
-      geom_density(fill = "yellow", alpha = 0.5) +
-      scale_fill_manual(values = c("yellow" = "yellow")) +
-      geom_vline(xintercept = 0.3, linetype = "dashed", color = "red") +
-      theme_minimal() +
-      labs(title = "Phylogenetic Group") + 
-      annotate("text", x = 0.3, y = Inf, label = "< 0.3 is cytotoxic", hjust = -0.2, vjust = 1, color = "red") +
-      ylab("Density") +
-      xlim(-0.5,1.5) + 
-      ylim(0,2)
-    
-    plot3 <- ggplot(data = matching_species_df_ct, aes(x = Normalized_Cytotoxicity)) +
-      geom_density(fill = "blue", alpha = 0.5) +
-      scale_fill_manual(values = c("blue" = "blue")) +
-      geom_vline(xintercept = 0.3, linetype = "dashed", color = "red") +
-      theme_minimal() +
-      labs(title = "Closest Type Strain") + 
-      annotate("text", x = 0.3, y = Inf, label = "< 0.3 is cytotoxic", hjust = -0.2, vjust = 1, color = "red") +
-      ylab("Density") + 
-      xlim(-0.5,1.5) + 
-      ylim(0,2)
-    
-    grid.arrange(plot1, plot2, plot3, ncol = 3)
+    min_value <- min(matching_species_df_ct1$Normalized_Cytotoxicity)
+    max_value <- max(matching_species_df_ct1$Normalized_Cytotoxicity)
+    breaks <- seq(floor(min_value), ceiling(max_value) + 0.05, by = 0.05)
+    ggplot(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity)) +
+      geom_histogram(binwidth = 0.05, fill = "yellow", breaks = breaks) +
+      xlab("Normalized_Cytotoxicity") + 
+      ylab("Number of Isolates") +
+      ggtitle(paste("Histogram of Normalized Cytotoxicity for Phylogenetic",df2$panC_Group)) +
+      theme_minimal()
   })
 }    
 
