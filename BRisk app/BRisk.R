@@ -228,8 +228,8 @@ server <- function(input, output) {
   output$hist1 <- renderPlot({
     req(data())
     df1 <- data()$df1
-    df1$color<-ifelse(test = df1$log_CFU_per_serving>=5,yes = ">= 5 log",no = 
-                           ifelse(df1$log_CFU_per_serving>=3,yes = ">= 3 log",no = "< 3 log"))
+    df1$color<-ifelse(test = df1$log_CFU_per_serving>=5,yes = "Above 5 log",no = 
+                           ifelse(df1$log_CFU_per_serving>=3,yes = "Between 3 and 5 log",no = "Below 3 log"))
     min_value <- min(df1$log_CFU_per_serving)
     max_value <- max(df1$log_CFU_per_serving)
     breaks <- seq(floor(min_value), ceiling(max_value) + 0.1, by = 0.1)
@@ -237,7 +237,7 @@ server <- function(input, output) {
     finalhist<-finalhist+
       geom_histogram(data = df1,aes(fill=color),binwidth = 0.1, breaks = breaks)+
       scale_fill_manual("B cereus count per serving", 
-                        values = c(">= 5 log"="red3",">= 3 log"="darkorange1","< 3 log"="springgreen3"))+
+                        values = c("Above 5 log"="red3","Between 3 and 5 log"="darkorange1","Below 3 log"="springgreen3"))+
       xlab("CFU per Serving (log scale)") +
       ylab("Number of Servings") +
       ggtitle("Distribution of B cereus count (cfu/serving) in HTST milk products") +
