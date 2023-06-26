@@ -58,8 +58,8 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      numericInput("n0", "Initial count (CFU/mL):", value = 100),  # Numeric input for "initial count"
-      numericInput("d", "Storage day:", value = 35),  # Numeric input for "storage day"
+      numericInput("n0", "Average initial count (mean) in CFU/mL:", value = 100),  # Numeric input for "initial count"
+      numericInput("d", "Consumer home storage day:", value = 35),  # Numeric input for "storage day"
       selectInput("foodmatrix",
                   label="Select a food matrix",
                   choices=c("Milk, pasteurized fluid")),
@@ -254,7 +254,7 @@ server <- function(input, output) {
     risk_result <- screen_risks(emetic_genes, anthrax_genes)
     risk_text <- paste("This is an isolate from phylogenetic", df2$panC_Group, 
                        ",with", risk_result$emetic_risk, "and", risk_result$anthrax_risk,
-                       ".Please refer to the Histogram of Normalized Cytotoxicity for Phylogenetic", df2$panC_Group, "below for Diarrheal Risk Assessment.")
+                       ".Please refer to the Histogram of Normalized Cytotoxicity for Phylogenetic", df2$panC_Group, "below for Diarrheal Disease Risk Assessment.")
     risk_text
   })
   
@@ -266,15 +266,19 @@ server <- function(input, output) {
     colnames(df3)[colnames(df3) == "Average_Cell_Viability_F"] <- "Normalized_Cytotoxicity"
     df3$panC_Group <- trimws(df3$panC_Group)
     matching_species_df_ct1 <- subset(df3, panC_Group == df2$panC_Group)
-    min_value <- min(matching_species_df_ct1$Normalized_Cytotoxicity)
-    max_value <- max(matching_species_df_ct1$Normalized_Cytotoxicity)
+    min_value <- min(df3$Normalized_Cytotoxicity)
+    max_value <- max(df3$Normalized_Cytotoxicity)
     breaks <- seq(floor(min_value), ceiling(max_value) + 0.05, by = 0.05)
-    ggplot(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity)) +
-      geom_histogram(binwidth = 0.05, fill = "yellow", breaks = breaks) +
-      xlab("Normalized_Cytotoxicity") + 
+    ggplot() +
+      geom_histogram(data = df3, aes(x = Normalized_Cytotoxicity, fill = "All Isolates"), binwidth = 0.05, alpha = 0.8) +
+      geom_histogram(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity, fill = "Phylogenetic Group"), binwidth = 0.05) +
+      xlab("Normalized_Cytotoxicity") +
       ylab("Number of Isolates") +
-      ggtitle(paste("Histogram of Normalized Cytotoxicity for Phylogenetic",df2$panC_Group)) +
-      theme_minimal()
+      ggtitle(paste("Histogram of Normalized Cytotoxicity for All Isolates and Phylogenetic", df2$panC_Group)) +
+      theme_minimal() +
+      scale_fill_manual(values = c("All Isolates" = "lightblue", "Phylogenetic Group" = "yellow"),
+                        labels = c("All Isolates", paste("Phylogenetic", df2$panC_Group, sep = " "))) +
+      labs(fill = "")
   })
 }    
 
