@@ -217,6 +217,9 @@ server <- function(input, output) {
     ModelData$realCFU = 10^ModelData$conc
     ModelData$CFU_per_serve = ModelData$realCFU*ModelData$serving.size
     log_CFU_per_serving <- log10(ModelData$CFU_per_serve)
+    print(n_sim)
+    print(sum(log_CFU_per_serving>3 & log_CFU_per_serving<5))
+    print(sum(log_CFU_per_serving>5))
     
     # Return the required data frame
     return(list(df1 =data.frame(ModelData, log_CFU_per_serving),
@@ -241,7 +244,14 @@ server <- function(input, output) {
       xlab("CFU per Serving (log scale)") +
       ylab("Number of Servings") +
       ggtitle("Distribution of B cereus count (cfu/serving) in HTST milk products") +
-      theme_minimal()
+      theme_minimal() + 
+      theme(plot.title = element_text(size = 14, face = "bold"),       
+            axis.title.x = element_text(size = 12),                    
+            axis.title.y = element_text(size = 12),  
+            axis.text.x = element_text(size = 12),                    
+            axis.text.y = element_text(size = 12),
+            legend.text = element_text(size = 12),                     
+            legend.title = element_text(size = 12, face = "bold"))    
     return(finalhist)
   })
   
@@ -252,9 +262,13 @@ server <- function(input, output) {
     emetic_genes <- df2$emetic_genes
     anthrax_genes <- df2$anthrax_genes
     risk_result <- screen_risks(emetic_genes, anthrax_genes)
-    risk_text <- paste("This is an isolate from phylogenetic", df2$panC_Group, 
-                       ",with", risk_result$emetic_risk, "and", risk_result$anthrax_risk,
-                       ".Please refer to the Histogram of Normalized Cytotoxicity for Phylogenetic", df2$panC_Group, "below for Diarrheal Disease Risk Assessment.")
+    
+    # Generate risk text
+    risk_text <- paste("RISK TEXT \nThis is an isolate from phylogenetic", df2$panC_Group, 
+                       ", with", risk_result$emetic_risk, "and", risk_result$anthrax_risk,
+                       ".\nPlease refer to the Histogram of Normalized Cytotoxicity for Phylogenetic", 
+                       df2$panC_Group, "below for Diarrheal Disease Risk Assessment.")
+    
     risk_text
   })
   
@@ -272,10 +286,16 @@ server <- function(input, output) {
     ggplot() +
       geom_histogram(data = df3, aes(x = Normalized_Cytotoxicity, fill = "All Isolates"), binwidth = 0.05, alpha = 0.8) +
       geom_histogram(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity, fill = "Phylogenetic Group"), binwidth = 0.05) +
-      xlab("Normalized_Cytotoxicity") +
+      xlab("Normalized Cytotoxicity") +
       ylab("Number of Isolates") +
       ggtitle(paste("Histogram of Normalized Cytotoxicity for All Isolates and Phylogenetic", df2$panC_Group)) +
       theme_minimal() +
+      theme(plot.title = element_text(size = 14, face = "bold"),       
+            axis.title.x = element_text(size = 12),                    
+            axis.title.y = element_text(size = 12),  
+            axis.text.x = element_text(size = 12),                    
+            axis.text.y = element_text(size = 12),
+            legend.text = element_text(size = 12)) +
       scale_fill_manual(values = c("All Isolates" = "lightblue", "Phylogenetic Group" = "yellow"),
                         labels = c("All Isolates", paste("Phylogenetic", df2$panC_Group, sep = " "))) +
       labs(fill = "")
