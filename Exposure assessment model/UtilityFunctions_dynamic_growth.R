@@ -2,7 +2,7 @@
 dBaranyi <- function(time, state, pars, env_func, sec_models) {
   pars <- as.list(pars)
   state <- as.list(state)
-  alpha <- state$Q/(1 + state$Q)
+  alpha <- state$Q/(1 + state$Q) # when lag time = 0, alpha = 1
   beta <- 1 - state$N/pars$Nmax
   gamma <- calculate_gammas(time, env_func, sec_models)
   mu <- pars$mu_opt*prod(gamma)

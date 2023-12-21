@@ -1,15 +1,15 @@
 ---
-title: "Bacillus cereus exposure assessment"
+title: "Sensitivity analysis"
 author: "Jun Su"
-date: "2023-04-10"
-output: PDF_document
+date: "2023-12-21"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
 ```
 
-# set environment 
+# set environment
 ```{r}
 # load packages 
 library(tibble)
@@ -71,10 +71,8 @@ for (i in 1:n_sim){
 }
 data$T_H <- temps
 
-## (b) Define t_H as 14, 21, 35 days for all units
-# data$t_H <- rep(35, each = n_sim)
-# data$t_H <- rep(21, each = n_sim)
-data$t_H <- rep(14, each = n_sim)
+## (b) Define t_H as 35 days for all units
+data$t_H <- rep(35, each = n_sim)
 
 ## Model temperature profiles of 100 units HTST milk 
 env_cond_time <- matrix(c(rep(0,100),
@@ -113,11 +111,42 @@ N0 = rpois(n = n_sim, lambda = 1e2*1900)
 N0 = N0/1900
 
 # Generate simulation input
-# Input Q0
+# Input Q0_avg
 simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, 
                                Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
                                Tmin = data_sec_model$Tmin,Clade)
+```
 
+# Input Q0_max
+```{r}
+simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0_max, 
+                               Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
+                               Tmin = data_sec_model$Tmin,Clade)
+```
+
+# Input Q0_min
+```{r}
+simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0_min, 
+                               Nmax = data_Nmax$average_Nmax, b = data_sec_model$Slope, 
+                               Tmin = data_sec_model$Tmin,Clade)
+```
+
+# Input Nmax_min
+```{r}
+simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, 
+                               Nmax = data_Nmax$min_Nmax, b = data_sec_model$Slope, 
+                               Tmin = data_sec_model$Tmin,Clade)
+```
+
+# Input Nmax_max
+```{r}
+simulation_input <- data.frame(isolate = data_Q0$isolate, Q0 = data_Q0$Q0, 
+                               Nmax = data_Nmax$max_Nmax, b = data_sec_model$Slope, 
+                               Tmin = data_sec_model$Tmin,Clade)
+
+```
+
+```{r}
 simulation_input$Topt = sapply(simulation_input$Clade, xopt_func)
 simulation_input$mu_opt = (simulation_input$b*(simulation_input$Topt-simulation_input$Tmin))^2 
 
@@ -141,38 +170,53 @@ final_conc <- simulation_input %>%
 # Convert the list of 16 elements into a matrix
 matrix <- t(sapply(final_conc, function(x) sapply(x, tail, n=1)))
 
-# Calculate the percentage over 5 and 3 log for each row (element) in the matrix
+# Calculate the percentage over 5 log for each row (element) in the matrix
 percent_over_5 <- rowMeans(matrix > 5) * 100
-percent_over_3 <- rowMeans(matrix > 3) * 100
-
 ```
 
+# Generate output 
 ```{r}
-# Generate result for d35
-Result_d35 = cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
-Result_d35 = as.data.frame(Result_d35)
-colnames(Result_d35)[1] = "isolate"
-colnames(Result_d35)[2] = "Group"
-Result_d35$percent_over_3 = percent_over_3
-Result_d35$day = 35
+# Output for Q0
+Q0_avg <- cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
+Q0_avg <- as.data.frame(Q0_avg)
+colnames(Q0_avg)[1] <- "isolate"
+colnames(Q0_avg)[2] <- "Group"
+Q0_avg$Q0 <- "Q0_avg"
 
-# Generate result for d21
-Result_d21 = cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
-Result_d21 = as.data.frame(Result_d21)
-colnames(Result_d21)[1] = "isolate"
-colnames(Result_d21)[2] = "Group"
-Result_d21$percent_over_3 = percent_over_3
-Result_d21$day = 21
+Nmax_avg <- cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
+Nmax_avg <- as.data.frame(Nmax_avg)
+colnames(Nmax_avg)[1] <- "isolate"
+colnames(Nmax_avg)[2] <- "Group"
+Nmax_avg$Nmax <- "Nmax_avg"
 
-# Generate result for d14
-Result_d14 = cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
-Result_d14 = as.data.frame(Result_d14)
-colnames(Result_d14)[1] = "isolate"
-colnames(Result_d14)[2] = "Group"
-Result_d14$percent_over_3 = percent_over_3
-Result_d14$day = 14
+Q0_max <- cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
+Q0_max <- as.data.frame(Q0_max)
+colnames(Q0_max)[1] <- "isolate"
+colnames(Q0_max)[2] <- "Group"
+Q0_max$Q0 <- "Q0_max"
 
-Result = rbind(Result_d35, Result_d21, Result_d14)
-write.csv(Result,"Exposure assessment model/OutputFiles/Result.csv")
+Q0_min <- cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
+Q0_min <- as.data.frame(Q0_min)
+colnames(Q0_min)[1] <- "isolate"
+colnames(Q0_min)[2] <- "Group"
+Q0_min$Q0 <- "Q0_min"
+
+Nmax_min <- cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
+Nmax_min <- as.data.frame(Nmax_min)
+colnames(Nmax_min)[1] <- "isolate"
+colnames(Nmax_min)[2] <- "Group"
+Nmax_min$Nmax <- "Nmax_min"
+
+Nmax_max <- cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
+Nmax_max <- as.data.frame(Nmax_max)
+colnames(Nmax_max)[1] <- "isolate"
+colnames(Nmax_max)[2] <- "Group"
+Nmax_max$Nmax <- "Nmax_max"
+
+Sensitivity_analysis_Q0 <- rbind(Q0_avg, Q0_min, Q0_max)
+Sensitivity_analysis_Nmax <- rbind(Nmax_avg, Nmax_min, Nmax_max)
+
+write.csv(Sensitivity_analysis_Q0, "Exposure assessment model/OutputFiles/Sensitivity_analysis_Q0.csv")
+write.csv(Sensitivity_analysis_Nmax, "Exposure assessment model/OutputFiles/Sensitivity_analysis_Nmax.csv")
 ```
 

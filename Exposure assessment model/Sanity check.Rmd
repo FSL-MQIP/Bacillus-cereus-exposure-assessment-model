@@ -72,62 +72,8 @@ count_d90_by_isolate <- simulation_input_groups %>%
 
 count_d90_by_isolate <- as.data.frame(count_d90_by_isolate)
 simulation_Tmin_result = do.call(rbind,count_d90_by_isolate)
-write.csv(simulation_Tmin_result,"Exposure assessment model/OutputFiles/simulation_Tmin_result.csv")
+write.csv(simulation_Tmin_result,"Exposure assessment model/OutputFiles/sanity_check_result.csv")
 ```
 
-# predict B cereus growth at static temperature near growth/no growth boundary
-```{r}
-# define the env_cond_time vectors for each simulation
-env_cond_times <- list(c(0:14), c(0:21), c(0:35), c(0:60), c(0:90))
 
-# create a vector of isolate names
-isolate_names <- unique(simulation_input$isolate)
-
-# create a list to store the final counts
-final_counts <- list()
-
-# loop over each isolate
-for (isolate_name in isolate_names) {
-  
-  # get the simulation input for the current isolate
-  isolate_input <- simulation_input[simulation_input$isolate == isolate_name, ]
-  
-  # loop over each env_cond_time vector
-  for (i in seq_along(env_cond_times)) {
-    
-    env_cond_time <- env_cond_times[[i]]
-    
-    # set the environment condition temperature based on the isolate
-    if (isolate_input$isolate == 125){
-      env_cond_temp <- 12
-    } else if (isolate_input$isolate == 638){
-      env_cond_temp <- 7
-    } else {
-      env_cond_temp <- 9
-    }
-    
-    # run simulation
-    my_primary <- list(mu_opt = isolate_input$mu_opt, Nmax = isolate_input$Nmax, N0 = 1e2, Q0 = isolate_input$Q0)
-    sec_temperature <- list(model = "reducedRatkowsky", xmin = isolate_input$Tmin, b = isolate_input$b, clade = isolate_input$Clade)
-    my_secondary <- list(temperature = sec_temperature)
-    growth <- predict_dynamic_growth(
-      times = env_cond_time,
-      env_conditions = tibble(time = env_cond_time, temperature = rep(env_cond_temp, length(env_cond_time))),
-      my_primary,
-      my_secondary
-    )
-    sim <- growth$simulation
-    final_count <- tail(sim$logN, 1)[[1]]
-    
-    # store the final count for the isolate and env_cond_time combination
-    final_counts[[paste(isolate_name, "_", i, sep = "")]] <- final_count
-  }
-}
-
-# create a data frame of isolate names, final counts and days
-count_by_isolate <- data.frame(isolate_env_time = names(final_counts), count = unlist(final_counts))
-days = rep(c(14,21,35,60,90),16)
-count_by_isolate$days = days
-write.csv(count_by_isolate,"Exposure assessment model/OutputFiles/simulation_result.csv")
-```
 

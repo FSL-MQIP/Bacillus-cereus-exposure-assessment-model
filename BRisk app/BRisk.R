@@ -48,27 +48,77 @@ database <- database %>%
   separate(Closest_Type_Strain.ANI., into = c("species","ANI"), sep = "\\(") %>%
   mutate(ANI = gsub("\\)", "", ANI))
 
-# Cytotoxicity data 
+# Cytotoxicity data
 cytotoxicity_input = read.csv("Cytotoxicity_data.csv")
 colnames(cytotoxicity_input)[1] <- "Isolate.Name"
 
 # Define ui
 ui <- fluidPage(
-  titlePanel("BRisk"),
+  tags$head(
+    tags$style(
+      HTML("
+        /* Increase font size for the entire interface */
+        body {
+          font-size: 18px;
+        }
+        
+        /* Increase font size for specific elements */
+        h1, h2, h3 {
+          font-size: 24px;
+        }
+        
+        p {
+          font-size: 16px;
+        }
+        
+        /* Set font size for the 'BRisk' title */
+        .brisk-title {
+          font-size: 30px;
+        }
+        
+        /* Set spacing for the interface elements */
+        .sidebar {
+          margin-top: 30px;
+          margin-bottom: 30px;
+        }
+        
+        .form-group {
+          margin-bottom: 30px; /* Increase this value to increase the space */
+        }
+      ")
+    )
+  ),
+
+  titlePanel(tags$h1("BRisk", class = "brisk-title")),
   
   sidebarLayout(
     sidebarPanel(
-      numericInput("n0", "Average initial count (mean) in CFU/mL:", value = 100),  # Numeric input for "initial count"
-      numericInput("d", "Consumer home storage day:", value = 35),  # Numeric input for "storage day"
+      div(class = "form-group",
+      numericInput("n0", "Average initial count (mean) in CFU/mL:", value = 100), 
+      ), # Numeric input for "initial count"
+      
+      div(class = "form-group",
+      numericInput("d", "Consumer home storage day:", value = 35),
+      ), # Numeric input for "storage day"
+      
+      div(class = "form-group",
       selectInput("foodmatrix",
                   label="Select a food matrix",
                   choices=c("Milk, pasteurized fluid")),
-      fileInput("file", "Input BTyper3 result for a detected B cereus isolate"),  # BTyper3 input for a B cereus isolate
-      submitButton("Submit", icon("refresh"))),
+      ), 
       
+      div(class = "form-group",
+      fileInput("file", "Input BTyper3 result for a detected B cereus isolate"),  # BTyper3 input for a B cereus isolate
+      ),
+      
+      div(class = "form-group",
+      submitButton("Submit", icon("refresh"))
+        ) 
+      ),
+    
     mainPanel(
       plotOutput("hist1"),
-      verbatimTextOutput("riskOutput"),
+      htmlOutput("riskOutput"),
       plotOutput("hist2")
     )
   )
@@ -217,9 +267,6 @@ server <- function(input, output) {
     ModelData$realCFU = 10^ModelData$conc
     ModelData$CFU_per_serve = ModelData$realCFU*ModelData$serving.size
     log_CFU_per_serving <- log10(ModelData$CFU_per_serve)
-    print(n_sim)
-    print(sum(log_CFU_per_serving>3 & log_CFU_per_serving<5))
-    print(sum(log_CFU_per_serving>5))
     
     # Return the required data frame
     return(list(df1 =data.frame(ModelData, log_CFU_per_serving),
@@ -245,18 +292,18 @@ server <- function(input, output) {
       ylab("Number of Servings") +
       ggtitle("Distribution of B cereus count (cfu/serving) in HTST milk products") +
       theme_minimal() + 
-      theme(plot.title = element_text(size = 14, face = "bold"),       
-            axis.title.x = element_text(size = 12),                    
-            axis.title.y = element_text(size = 12),  
-            axis.text.x = element_text(size = 12),                    
-            axis.text.y = element_text(size = 12),
-            legend.text = element_text(size = 12),                     
-            legend.title = element_text(size = 12, face = "bold"))    
+      theme(plot.title = element_text(size = 24, face = "bold"),       
+            axis.title.x = element_text(size = 22),                    
+            axis.title.y = element_text(size = 22),  
+            axis.text.x = element_text(size = 22),                    
+            axis.text.y = element_text(size = 22),
+            legend.text = element_text(size = 22),                     
+            legend.title = element_text(size = 22, face = "bold"))    
     return(finalhist)
   })
   
   # Generate risk text
-  output$riskOutput <- renderText({
+  output$riskOutput <- renderUI({
     req(data())
     df2 <- data()$df2
     emetic_genes <- df2$emetic_genes
@@ -264,12 +311,13 @@ server <- function(input, output) {
     risk_result <- screen_risks(emetic_genes, anthrax_genes)
     
     # Generate risk text
-    risk_text <- paste("RISK TEXT \nThis is an isolate from phylogenetic", df2$panC_Group, 
-                       ", with", risk_result$emetic_risk, "and", risk_result$anthrax_risk,
-                       ".\nPlease refer to the Histogram of Normalized Cytotoxicity for Phylogenetic", 
-                       df2$panC_Group, "below for Diarrheal Disease Risk Assessment.")
+    risk_text <- HTML(paste("<div style='position: absolute; top: 800px; left: 20px;'>",
+                            "<h2> This is an isolate from phylogenetic <b>", df2$panC_Group,
+                            "</b></h2><h2>With <b><span style='color: darkred;'>", risk_result$emetic_risk, 
+                            "</span></b></h2><h2> And <b><span style='color: darkred;'>", risk_result$anthrax_risk, 
+                            "</div>", sep = ""))
     
-    risk_text
+    return(risk_text)
   })
   
   # Generate a histogram for the distribution of normalized cytotoxicity for diarrheal risk 
@@ -286,16 +334,18 @@ server <- function(input, output) {
     ggplot() +
       geom_histogram(data = df3, aes(x = Normalized_Cytotoxicity, fill = "All Isolates"), binwidth = 0.05, alpha = 0.8) +
       geom_histogram(data = matching_species_df_ct1, aes(x = Normalized_Cytotoxicity, fill = "Phylogenetic Group"), binwidth = 0.05) +
-      xlab("Normalized Cytotoxicity") +
+      xlab("Cytotoxicity Value") +
       ylab("Number of Isolates") +
-      ggtitle(paste("Histogram of Normalized Cytotoxicity for All Isolates and Phylogenetic", df2$panC_Group)) +
+      ggtitle(paste("Histogram of Cytotoxicity Values for All Isolates and Phylogenetic", df2$panC_Group, 
+                    "\n", 
+                    "(Diarrheal Disease Risk Assessment)")) + 
       theme_minimal() +
-      theme(plot.title = element_text(size = 14, face = "bold"),       
-            axis.title.x = element_text(size = 12),                    
-            axis.title.y = element_text(size = 12),  
-            axis.text.x = element_text(size = 12),                    
-            axis.text.y = element_text(size = 12),
-            legend.text = element_text(size = 12)) +
+      theme(plot.title = element_text(size = 24, face = "bold"),       
+            axis.title.x = element_text(size = 22),                    
+            axis.title.y = element_text(size = 22),  
+            axis.text.x = element_text(size = 22),                    
+            axis.text.y = element_text(size = 22),
+            legend.text = element_text(size = 22)) +
       scale_fill_manual(values = c("All Isolates" = "lightblue", "Phylogenetic Group" = "yellow"),
                         labels = c("All Isolates", paste("Phylogenetic", df2$panC_Group, sep = " "))) +
       labs(fill = "")

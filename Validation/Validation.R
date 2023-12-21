@@ -1,22 +1,12 @@
----
-title: "Bacillus cereus exposure assessment"
-author: "Jun Su"
-date: "2023-04-10"
-output: PDF_document
----
+setwd("C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
 
-```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "C:/Users/sujun/Documents/GitHub/Bacillus-cereus-exposure-assessment-model")
-```
-
-# set environment 
-```{r}
 # load packages 
 library(tibble)
 library(EnvStats)         # to load rtri function 
 library(truncnorm)        # to load rtruncnorm function
 library(jmuOutlier)       # to load rlaplace function
 library(dplyr)
+library(tidyr)
 library(formula.tools)    # to load 'rhs'
 library(purrr)            # to load 'map'
 library(deSolve)          # to load 'ode'
@@ -24,60 +14,41 @@ library(rlang)
 
 # load utility functions
 source("Exposure assessment model/UtilityFunctions_dynamic_growth.R")
-```
 
-# simulate temperature profiles of 100 units of HTST milk 
-```{r}
 ## Set up dataframe for modeling 100 units of HTST milk 
-n_sim = 100
+n_sim = 1
 data = data.frame(unit_id = rep(seq(1,n_sim)))
 
-## Set seed
-set.seed(1)
-
 # Stage 1: facility storage 
-## (a)  Sample the temperature distribution
-data$T_F <- rep(runif(n_sim,min=3.5,max=4.5)) #uniform distribution
-## (b) Sample the storage time (in days) distribution
-data$t_F <- rep(runif(n_sim,min=1,max=2)) #uniform distribution
-
+## (a)  temperature
+data$T_F <- 4
+## (b) storage time (in days)
+data$t_F <- 1.5
 # Stage 2: transport from facility to retail store
-## (a)  Sample the temperature distribution
-data$T_T <- rep(rtri(n_sim,min=1.7,max=10.0,mode=4.4)) #triangular distribution
-## (b) Sample the transportation time (in days) distribution
-data$t_T <- rep(rtri(n_sim,min=1,max=10,mode=5)) #triangular distribution
-
+## (a)  temperature
+data$T_T <- 10
+## (b) transportation time (in days)
+data$t_T <- 5
 # Stage 3: storage/display at retail store
-## (a)  Sample the temperature distribution
-data$T_S <- rep(rtruncnorm(n_sim,a=-1.4,b=5.4,mean=2.3,sd=1.8)) #truncated normal distribution
+## (a)  temperature
+data$T_S <- 4
 ## (b) Sample the storage time (in days) distribution
-data$t_S <- rep(rtruncnorm(n_sim,a=0.042,b=10.0, mean=1.821,sd=3.3)) #truncated normal distribution
-
+data$t_S <- 2
 ## Stage 4: transportation from retail store to home
-## (a)  Sample the temperature distribution
-data$T_T2 <- rep(rtruncnorm(n_sim,a=0,b=10,mean=8.5,sd=1.0)) #truncated normal distribution
-## (b) Sample the transportation time (in days) distribution 
-data$t_T2 <- rep(rtruncnorm(n_sim,a=0.01,b=0.24, mean=0.04,sd=0.02)) #truncated normal distribution
-
+## (a)  temperature
+data$T_T2 <- 10
+## (b) transportation time (in days) 
+data$t_T2 <- 0.04
 ## Stage 5: home storage 
 ## (a)  Sample the temperature distribution
-temps <- rep(NA, n_sim)
-for (i in 1:n_sim){
-  number <- rlaplace(1,m=4.06,s=2.31)
-  while (number > 15 | number < -1) {
-    number <- rlaplace(1,m=4.06,s=2.31) #truncated laplace distribution 
-  }
-  temps[i] <- number
-}
-data$T_H <- temps
+data$T_H <- 10
+## (b) transportation time (in days) 
+# data$t_H <- 14
+# data$t_H <- 21
+data$t_H <- 35
 
-## (b) Define t_H as 14, 21, 35 days for all units
-# data$t_H <- rep(35, each = n_sim)
-# data$t_H <- rep(21, each = n_sim)
-data$t_H <- rep(14, each = n_sim)
-
-## Model temperature profiles of 100 units HTST milk 
-env_cond_time <- matrix(c(rep(0,100),
+## Model temperature profiles of n_sim units HTST milk 
+env_cond_time <- matrix(c(rep(0,n_sim),
                           data$t_F, 
                           data$t_F+0.001,
                           data$t_F + data$t_T,
@@ -98,10 +69,7 @@ env_cond_temp <- matrix(c(data$T_F,
                           data$T_T2,
                           data$T_H,
                           data$T_H), ncol = 10)
-```
 
-# predict dynamic growth
-```{r}
 # Import data set
 data_Q0 = read.csv("Exposure assessment model/InputFiles/Q0_h0_summary.csv")
 data_Nmax = read.csv("Exposure assessment model/InputFiles/Nmax_new.csv")
@@ -109,8 +77,7 @@ data_sec_model = read.csv("Exposure assessment model/InputFiles/sec_model_new.cs
 Clade = c("I","II","VII","IV","IV","IV","IV","II","III","IV","II","VII","II","V","V","IV")
 # Generate N0 from a Poisson distribution 
 set.seed(42)
-N0 = rpois(n = n_sim, lambda = 1e2*1900)
-N0 = N0/1900
+N0 = rpois(n = n_sim, lambda = 1e2)
 
 # Generate simulation input
 # Input Q0
@@ -140,39 +107,25 @@ final_conc <- simulation_input %>%
 
 # Convert the list of 16 elements into a matrix
 matrix <- t(sapply(final_conc, function(x) sapply(x, tail, n=1)))
+# final_count_d14 <- as.list(matrix)
+# final_count_d21 <- as.list(matrix)
+final_count_d35 <- as.list(matrix)
+# simulation_input$final_count_d14 = final_count_d14
+# simulation_input$final_count_d21 = final_count_d21
+simulation_input$final_count_d35 = final_count_d35
+simulation_input <- simulation_input[order(simulation_input$Clade), ]
+Validation_1 <- simulation_input[,c(1,6,9:11)]
+Validation_1 <- Validation_1 %>%
+  unnest(final_count_d14) %>%
+  unnest(final_count_d21) %>%
+  unnest(final_count_d35)
+write.csv(Validation_1,"Validation_1.csv")
 
-# Calculate the percentage over 5 and 3 log for each row (element) in the matrix
-percent_over_5 <- rowMeans(matrix > 5) * 100
-percent_over_3 <- rowMeans(matrix > 3) * 100
-
-```
-
-```{r}
-# Generate result for d35
-Result_d35 = cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
-Result_d35 = as.data.frame(Result_d35)
-colnames(Result_d35)[1] = "isolate"
-colnames(Result_d35)[2] = "Group"
-Result_d35$percent_over_3 = percent_over_3
-Result_d35$day = 35
-
-# Generate result for d21
-Result_d21 = cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
-Result_d21 = as.data.frame(Result_d21)
-colnames(Result_d21)[1] = "isolate"
-colnames(Result_d21)[2] = "Group"
-Result_d21$percent_over_3 = percent_over_3
-Result_d21$day = 21
-
-# Generate result for d14
-Result_d14 = cbind(simulation_input$isolate, simulation_input$Clade, percent_over_5)
-Result_d14 = as.data.frame(Result_d14)
-colnames(Result_d14)[1] = "isolate"
-colnames(Result_d14)[2] = "Group"
-Result_d14$percent_over_3 = percent_over_3
-Result_d14$day = 14
-
-Result = rbind(Result_d35, Result_d21, Result_d14)
-write.csv(Result,"Exposure assessment model/OutputFiles/Result.csv")
-```
-
+# Power analysis 
+library("TOSTER")
+# One-Sample Equivalence Test ("two one-sided t-tests")
+# delta: true effect size (assume to be 0 for an equivalence test)
+# sd: population standard deviation (assumed, will substantially affect sample size)
+# eqb: smallest effect size of interest
+power_t_TOST(type = "one.sample", delta = 0, sd = 1, eqb = 1, 
+             power = 0.8, alpha = 0.05)

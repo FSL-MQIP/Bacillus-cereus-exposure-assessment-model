@@ -29,6 +29,14 @@ avg_Nmax_by_isolate <- aggregate(LOG10Nmax ~ isolate, data = Nmax_table, mean)
 colnames(avg_Nmax_by_isolate) <- c("isolate", "average_LOG10Nmax")
 avg_Nmax_by_isolate$average_Nmax = 10^avg_Nmax_by_isolate$average_LOG10Nmax
 
+# minimum Nmax by isolate 
+min_Nmax_by_isolate <- aggregate(LOG10Nmax ~ isolate, data = Nmax_table, min)
+avg_Nmax_by_isolate$min_Nmax = 10^min_Nmax_by_isolate$LOG10Nmax
+
+# maximum Nmax by isolate 
+max_Nmax_by_isolate <- aggregate(LOG10Nmax ~ isolate, data = Nmax_table, max)
+avg_Nmax_by_isolate$max_Nmax = 10^max_Nmax_by_isolate$LOG10Nmax
+
 # export the data to a CSV file
 write.csv(avg_Nmax_by_isolate, "Calculate Nmax and Q0/OutputFiles/Nmax_new.csv", row.names = FALSE)
 ```
